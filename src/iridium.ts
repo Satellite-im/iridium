@@ -30,6 +30,12 @@ export default class Iridium extends EventEmitter {
     super();
   }
 
+  /**
+   * Initialize an Iridium instance from seed bytes
+   * @param seed - bytes of seed data to initialize with
+   * @param config - configuration options
+   * @returns
+   */
   static async fromSeed(
     seed: Uint8Array,
     {
@@ -53,18 +59,30 @@ export default class Iridium extends EventEmitter {
     return client;
   }
 
+  /**
+   * get the IPFS instance
+   */
   get ipfs(): IPFS {
     return this._ipfs;
   }
 
+  /**
+   * get the DID instance
+   */
   get did(): DID {
     return this._did;
   }
 
+  /**
+   * get the DID identifier for this instance
+   */
   get id(): string {
     return this.did.id;
   }
 
+  /**
+   * Listen for direct messages from other DIDs
+   */
   async listenForDirectMessages() {
     console.info('listening for direct messages on ' + this.id);
     await this.ipfs.pubsub.subscribe(this.id, async (message: any) => {
@@ -92,6 +110,12 @@ export default class Iridium extends EventEmitter {
     });
   }
 
+  /**
+   * Send an unsigned & unencrypted payload to a list of DIDs
+   * @param payload
+   * @param dids
+   * @returns
+   */
   send(payload: any, dids: string[] | string) {
     return Promise.all(
       (Array.isArray(dids) ? dids : [dids]).map(async (did) => {
@@ -101,11 +125,23 @@ export default class Iridium extends EventEmitter {
     );
   }
 
+  /**
+   * Send a signed payload to a list of DIDs
+   * @param payload
+   * @param dids
+   * @returns
+   */
   sendSigned(payload: any, dids: string[]) {
     const jws = this.did.createJWS(payload);
     return this.send({ jws }, Array.isArray(dids) ? dids : [dids]);
   }
 
+  /**
+   * Verify a signed payload
+   * @param payload
+   * @param signer
+   * @returns
+   */
   async verifySigned(payload: any, signer: string) {
     const verify = await this.did.verifyJWS(payload);
     if (!verify) {
@@ -114,6 +150,11 @@ export default class Iridium extends EventEmitter {
     return verify.kid === signer;
   }
 
+  /**
+   * Store a signed payload in the IPFS DAG
+   * @param payload
+   * @returns
+   */
   async storeSigned(payload: any) {
     const { jws, linkedBlock } = await this.did.createDagJWS(payload);
     const cid = await this.ipfs.dag.put(jws, {
@@ -124,6 +165,12 @@ export default class Iridium extends EventEmitter {
     return cid;
   }
 
+  /**
+   * Load and verify a signed payload from the IPFS DAG
+   * @param cid
+   * @param options
+   * @returns
+   */
   async loadSigned(cid: CID, options = {}) {
     const jws = (await this.ipfs.dag.get(cid, options)) as unknown as DagJWS;
     if (!this.did.verifyJWS(jws)) {
@@ -132,6 +179,12 @@ export default class Iridium extends EventEmitter {
     return jws.payload;
   }
 
+  /**
+   * Store a signed and encrypted payload in the IPFS DAG
+   * @param document
+   * @param dids
+   * @returns
+   */
   async storeEncrypted(document: any, dids = [this.did.id]) {
     const jwe = await this.did.createDagJWE(document, dids);
     return this.ipfs.dag.put(jwe, {
@@ -140,12 +193,25 @@ export default class Iridium extends EventEmitter {
     });
   }
 
+  /**
+   * Send a signed and encrypted payload to a list of DIDs
+   * @param payload
+   * @param dids
+   * @param options
+   * @returns
+   */
   async sendEncrypted(payload: any, dids: string[], options = {}) {
     const encoded = json.encode(payload);
     const jwe = await this.did.createJWE(encoded, dids, options);
     return this.send({ jwe }, Array.isArray(dids) ? dids : [dids]);
   }
 
+  /**
+   * Read a signed and encrypted payload from the IPFS DAG
+   * @param cid
+   * @param options
+   * @returns
+   */
   async readEncrypted(cid: CID, options = {}) {
     const doc = await this.ipfs.dag.get(cid, options);
     if (!doc) {
@@ -155,6 +221,11 @@ export default class Iridium extends EventEmitter {
     return this.did.decryptDagJWE(jwe);
   }
 
+  /**
+   * Decrypt a signed and encrypted payload, automatically unrolling linked data
+   * @param cid
+   * @param options
+   */
   async loadEncrypted(cid: CID, options = {}, linkOptions = {}) {
     const object = await this.readEncrypted(cid, options);
     if (object._links) {
@@ -170,11 +241,21 @@ export default class Iridium extends EventEmitter {
     return object;
   }
 
+  /**
+   * Decrypt a signed and encrypted payload
+   * @param jwe
+   * @param options
+   * @returns
+   */
   async decrypt(jwe: any, options = {}) {
     const encoded = await this.did.decryptJWE(jwe, options);
     return json.decode(encoded);
   }
 
+  /**
+   * Load the IPNS record associated with our PeerId
+   * @returns
+   */
   async loadIPNS() {
     // load and decrypt JWE from IPNS
     let _root;
@@ -189,6 +270,11 @@ export default class Iridium extends EventEmitter {
     return _root;
   }
 
+  /**
+   * Encrypt a document and store it in the IPFS DAG, setting the IPNS record to point to it
+   * @param object
+   * @returns
+   */
   async setIPNS(object: any) {
     const jwe = await this.storeEncrypted(object);
     const cid = await this.ipfs.dag.put(jwe, {

@@ -7,7 +7,7 @@ Iridium is a loosely defined protocol for peer to peer communication and storage
 ```js
 const iridum = Iridium.fromSeed(
   uint8SeedBytes,
-  // the default root document:
+  // IridiumConfig options
   { config: { bootstrap: bootstrapUrls, swarm: swarmUrls } }
 );
 ```
