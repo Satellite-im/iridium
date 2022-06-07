@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "target": "es2020",
+    "module": "es2020",
+    "moduleResolution": "node",
+    "types": ["node", "jest"],
+    "noResolve": false,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "noFallthroughCasesInSwitch": true,
+    "outDir": "./dist"
+  }
+}
