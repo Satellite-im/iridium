@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "rootDir": "./src",
+    "rootDir": ".",
     "target": "es2020",
     "module": "es2020",
     "moduleResolution": "node",
@@ -17,5 +17,12 @@
     "baseUrl": ".",
     "noFallthroughCasesInSwitch": true,
     "outDir": "./dist"
-  }
+  },
+  "include": ["./src/**/*", "./jest.config.ts", "./test/**/*"],
+  "exclude": [
+    "./dist/**/*",
+    "./coverage/**/*",
+    "./node_modules/**/*",
+    "./iridium/**/*"
+  ]
 }
