@@ -14,7 +14,7 @@
   },
   "type": "module",
   "scripts": {
-    "build": "tsup src/index.ts --outDir dist",
+    "build": "tsup",
     "test": "ava",
     "lint": "eslint",
     "prepare": "pnpm build",
