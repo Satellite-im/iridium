@@ -2,3 +2,4 @@ node_modules/
 iridium/
 coverage/
 dist/
+sandbox.ts

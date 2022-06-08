@@ -6,7 +6,15 @@ import { CID } from 'multiformats';
 import type { IPFS } from 'ipfs-core';
 import type { GeneralJWS } from 'dids';
 import EventEmitter from 'events';
+import set from 'lodash.set';
+import get from 'lodash.get';
 import { ipfsNodeFromSeed } from './ipfs';
+const resolver = KeyDIDResolver.getResolver();
+
+export type IridiumStoreConfig = {
+  linkKeys?: string[];
+  [key: string]: any;
+};
 
 export type IridiumMessage = {
   jws?: GeneralJWS;
@@ -21,12 +29,23 @@ export type IPFSEvent = {
 export type IridiumConfig = {
   repo?: string;
   version?: string;
-  swarm?: string[];
-  bootstrap?: string[];
+  ipfs?: {
+    [key: string]: any;
+  };
+};
+
+export type IridiumDocument = {
+  [key: string]: any;
 };
 
 export default class Iridium extends EventEmitter {
-  constructor(private readonly _ipfs: IPFS, private readonly _did: DID) {
+  private _ipnsCID?: CID;
+  private _ipnsDoc?: { [key: string]: any };
+  constructor(
+    private readonly _ipfs: IPFS,
+    private readonly _peerId: string,
+    private readonly _did: DID
+  ) {
     super();
   }
 
@@ -41,20 +60,28 @@ export default class Iridium extends EventEmitter {
     {
       config = {},
       ipfs = undefined,
+      peerId = undefined,
     }: {
       config?: IridiumConfig;
       ipfs?: IPFS;
+      peerId?: string;
     }
   ): Promise<Iridium> {
-    const resolver = KeyDIDResolver.getResolver();
     const provider = new Ed25519Provider(seed);
     const did = new DID({
       provider,
       resolver,
     });
     await did.authenticate();
-    const node = ipfs || (await ipfsNodeFromSeed(seed, config));
-    const client = new Iridium(node, did);
+    if (!ipfs) {
+      const init = await ipfsNodeFromSeed(seed, config);
+      ipfs = init.ipfs;
+      peerId = init.peerId;
+    }
+    if (!peerId) {
+      throw new Error('peerId is required');
+    }
+    const client = new Iridium(ipfs, peerId, did);
     await client.listenForDirectMessages();
     return client;
   }
@@ -78,6 +105,13 @@ export default class Iridium extends EventEmitter {
    */
   get id(): string {
     return this.did.id;
+  }
+
+  /**
+   * get the PeerId identifier for this instance
+   */
+  get peerId(): string {
+    return this._peerId.toString();
   }
 
   /**
@@ -120,7 +154,9 @@ export default class Iridium extends EventEmitter {
     return Promise.all(
       (Array.isArray(dids) ? dids : [dids]).map(async (did) => {
         console.info('sending to ' + did);
-        await this.ipfs.pubsub.publish(did, json.encode(payload));
+        await this.ipfs.pubsub.publish(did, json.encode(payload), {
+          timeout: 1000,
+        });
       })
     );
   }
@@ -185,11 +221,38 @@ export default class Iridium extends EventEmitter {
    * @param dids
    * @returns
    */
-  async storeEncrypted(document: any, dids = [this.did.id]) {
-    const jwe = await this.did.createDagJWE(document, dids);
+  async storeEncrypted(
+    document: any,
+    dids = [this.did.id],
+    options: IridiumStoreConfig = {}
+  ) {
+    const stored = { ...document, _links: {} };
+    await Promise.all(
+      Object.keys(stored).map(async (key: string) => {
+        // if the key is an object, store it as a linked block
+        if (
+          typeof stored[key] === 'object' &&
+          ((stored[key]?.length && stored[key]?.length > 0) ||
+            Object.keys(stored[key]).length > 3)
+        ) {
+          const linkedCID = await this.storeEncrypted(
+            stored[key],
+            dids,
+            options
+          );
+          stored._links[key] = linkedCID;
+          delete stored[key];
+        }
+      })
+    );
+
+    const jwe = await this.did.createDagJWE(stored, dids);
     return this.ipfs.dag.put(jwe, {
+      timeout: 3000,
+      pin: true,
       storeCodec: 'dag-jose',
       hashAlg: 'sha2-256',
+      ...options,
     });
   }
 
@@ -213,7 +276,7 @@ export default class Iridium extends EventEmitter {
    * @returns
    */
   async readEncrypted(cid: CID, options = {}) {
-    const doc = await this.ipfs.dag.get(cid, options);
+    const doc = await this.ipfs.dag.get(cid, { ...options, timeout: 3000 });
     if (!doc) {
       throw new Error('dag CID not found');
     }
@@ -232,7 +295,10 @@ export default class Iridium extends EventEmitter {
       await Promise.all(
         Object.keys(object._links).map(async (key) => {
           const cid = object._links[key];
-          const child = await this.loadEncrypted(cid, linkOptions);
+          const child = await this.loadEncrypted(cid, {
+            ...linkOptions,
+            timeout: 3000,
+          });
           object[key] = child;
         })
       );
@@ -253,35 +319,74 @@ export default class Iridium extends EventEmitter {
   }
 
   /**
-   * Load the IPNS record associated with our PeerId
+   * Read from the root document on the IPNS record associated with our PeerId
    * @returns
    */
-  async loadIPNS() {
+  async get(path = '/', options: any = {}) {
+    if (this._ipnsDoc && this._ipnsCID && !options.force) {
+      if (path === '/') return this._ipnsDoc;
+      return get(this._ipnsDoc, convertPath(path));
+    }
+
     // load and decrypt JWE from IPNS
+    if (path !== '/') {
+      options.path = path;
+    }
+
     let _root;
-    for await (const record of this.ipfs.name.resolve(this.id)) {
-      const doc = await this.ipfs.get(record);
-      try {
-        _root = this.decrypt(doc);
-      } catch (_) {
-        _root = doc;
+    for await (const cidStr of this.ipfs.name.resolve(this.peerId, {
+      timeout: 3000,
+    })) {
+      if (cidStr) {
+        const cid = CID.parse(cidStr.substring(6));
+        this._ipnsCID = cid;
+        try {
+          const doc = await this.loadEncrypted(cid, {
+            ...options,
+            timeout: 3000,
+          }).catch(() => undefined);
+          if (doc) {
+            _root = doc;
+          }
+        } catch (_) {
+          console.error('failed to load encrypted document');
+        }
       }
     }
-    return _root;
+    this._ipnsDoc = _root || {};
+    return this._ipnsDoc;
   }
 
   /**
-   * Encrypt a document and store it in the IPFS DAG, setting the IPNS record to point to it
+   * Update the root document on the IPNS record associated with our PeerId
    * @param object
    * @returns
    */
-  async setIPNS(object: any) {
-    const jwe = await this.storeEncrypted(object);
-    const cid = await this.ipfs.dag.put(jwe, {
-      storeCodec: 'dag-jose',
-      hashAlg: 'sha2-256',
+  async set(path = '/', object: any, options = {}) {
+    if (!this._ipnsCID || !this._ipnsDoc) {
+      await this.get('/');
+    }
+
+    const prev = this._ipnsDoc || {};
+    const next = path === '/' ? object : { ...prev };
+    if (path !== '/') {
+      set(next, convertPath(path), object);
+    }
+    const cid = await this.storeEncrypted(next, [this.did.id], {
+      ...options,
+      timeout: 3000,
+      pin: true,
     });
-    await this.ipfs.name.publish(cid);
+    this.ipfs.name.publish(cid, {
+      resolve: false,
+      lifetime: '7d',
+    });
+    this._ipnsCID = cid;
+    this._ipnsDoc = next;
     return cid;
   }
+}
+
+function convertPath(prev: string) {
+  return (prev.startsWith('/') ? prev.substring(1) : prev).split('/').join('.');
 }

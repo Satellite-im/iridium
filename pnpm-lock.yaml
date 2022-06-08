@@ -7,8 +7,11 @@ specifiers:
   '@libp2p/peer-id-factory': ^1.0.11
   '@noble/ed25519': ^1.6.0
   '@size-limit/preset-small-lib': ^7.0.8
+  '@types/lodash.get': ^4.4.7
+  '@types/lodash.set': ^4.3.7
   '@types/node': ^17.0.40
   ava: ^4.3.0
+  blockcodec-to-ipld-format: ^2.0.0
   dag-jose: ^2.0.0
   dag-jose-utils: ^2.0.0
   did-jwt: ^6.1.0
@@ -18,6 +21,8 @@ specifiers:
   ipfs-core: ^0.15.1
   key-did-provider-ed25519: ^2.0.0
   key-did-resolver: ^2.0.4
+  lodash.get: ^4.4.2
+  lodash.set: ^4.3.2
   merge: ^2.1.1
   multiformats: ^9.6.3
   size-limit: ^7.0.8
@@ -32,6 +37,8 @@ dependencies:
   '@libp2p/peer-id': 1.1.11
   '@libp2p/peer-id-factory': 1.0.11
   '@noble/ed25519': 1.6.0
+  '@types/lodash.set': 4.3.7
+  blockcodec-to-ipld-format: 2.0.0
   dag-jose: 2.0.0
   dag-jose-utils: 2.0.0
   did-jwt: 6.1.2
@@ -40,12 +47,15 @@ dependencies:
   ipfs-core: 0.15.1_fvkldoeufjjq5mlpfdkzhuqzdy
   key-did-provider-ed25519: 2.0.0
   key-did-resolver: 2.0.4
+  lodash.get: 4.4.2
+  lodash.set: 4.3.2
   merge: 2.1.1
   multiformats: 9.6.5
 
 devDependencies:
   '@ava/typescript': 3.0.1
   '@size-limit/preset-small-lib': 7.0.8_size-limit@7.0.8
+  '@types/lodash.get': 4.4.7
   '@types/node': 17.0.40
   ava: 4.3.0_@ava+typescript@3.0.1
   husky: 8.0.1
@@ -984,6 +994,10 @@ packages:
       - utf-8-validate
     dev: false
 
+  /@multiformats/base-x/4.0.1:
+    resolution: {integrity: sha512-eMk0b9ReBbV23xXU693TAIrLyeO5iTgBZGSJfpqriG8UkYvr/hC9u9pyMlAakDNHWmbhMZCDs6KQO0jzKD8OTw==}
+    dev: false
+
   /@multiformats/mafmt/11.0.2:
     resolution: {integrity: sha512-KesMM4fSEpMz1kZPzlvdwYNYrq5iH38S5EDKLu5qsGG4NT94UaruTjase9osaDW+CcDfshK9uZUD9lzpXJGreA==}
     dependencies:
@@ -1282,6 +1296,21 @@ packages:
     dev: false
     optional: true
 
+  /@types/lodash.get/4.4.7:
+    resolution: {integrity: sha512-af34Mj+KdDeuzsJBxc/XeTtOx0SZHZNLd+hdrn+PcKGQs0EG2TJTzQAOTCZTgDJCArahlCzLWSy8c2w59JRz7Q==}
+    dependencies:
+      '@types/lodash': 4.14.182
+    dev: true
+
+  /@types/lodash.set/4.3.7:
+    resolution: {integrity: sha512-bS5Wkg/nrT82YUfkNYPSccFrNZRL+irl7Yt4iM6OTSQ0VZJED2oUIVm15NkNtUAQ8SRhCe+axqERUV6MJgkeEg==}
+    dependencies:
+      '@types/lodash': 4.14.182
+    dev: false
+
+  /@types/lodash/4.14.182:
+    resolution: {integrity: sha512-/THyiqyQAP9AfARo4pF+aCGcyiQ94tX/Is2I7HofNRqoYLgN1PBoOWu2/zTA5zMxzP5EFutMtWtGAFRKUe961Q==}
+
   /@types/long/4.0.2:
     resolution: {integrity: sha512-MqTGEo5bj5t157U6fA/BiDynNkn0YknVdh48CMPkTSpFTVmvao5UQmm7uEF6xBEo7qIMAlY/JSleYaE6VOdpaA==}
     dev: false
@@ -1514,10 +1543,24 @@ packages:
       readable-stream: 3.6.0
     dev: false
 
+  /blakejs/1.2.1:
+    resolution: {integrity: sha512-QXUSXI3QVc/gJME0dBpXrag1kbzOqCjCX8/b54ntNyW6sjtoqxqRk3LTmXzaJoh71zMsDCjM+47jS7XiwN/+fQ==}
+    dev: false
+
   /blob-to-it/1.0.4:
     resolution: {integrity: sha512-iCmk0W4NdbrWgRRuxOriU8aM5ijeVLI61Zulsmg/lUHNr7pYjoj+U77opLefNagevtrrbMt3JQ5Qip7ar178kA==}
     dependencies:
       browser-readablestream-to-it: 1.0.3
+    dev: false
+
+  /blockcodec-to-ipld-format/2.0.0:
+    resolution: {integrity: sha512-SmgltjEW9LEG7dBR7uCK86UqCsboQq62RjVCLfgREEN09n6pn0agNMOLQ7BiGuQs2hyA8GRTFpEEcSuTtYl9xg==}
+    dependencies:
+      cids: 1.1.9
+      interface-ipld-format: 1.0.1
+      multiformats: 9.6.5
+      multihashes: 4.0.3
+      multihashing-async: 2.1.4
     dev: false
 
   /blockstore-core/1.0.5:
@@ -1689,6 +1732,17 @@ packages:
   /ci-parallel-vars/1.0.1:
     resolution: {integrity: sha512-uvzpYrpmidaoxvIQHM+rKSrigjOe9feHYbw4uOI2gdfe1C3xIlxO+kVXq83WQWNniTf8bAxVpy+cQeFQsMERKg==}
     dev: true
+
+  /cids/1.1.9:
+    resolution: {integrity: sha512-l11hWRfugIcbGuTZwAM5PwpjPPjyb6UZOGwlHSnOBV5o07XhQ4gNpBN67FbODvpjyHtd+0Xs6KNvUcGBiDRsdg==}
+    engines: {node: '>=4.0.0', npm: '>=3.0.0'}
+    deprecated: This module has been superseded by the multiformats module
+    dependencies:
+      multibase: 4.0.6
+      multicodec: 3.2.1
+      multihashes: 4.0.3
+      uint8arrays: 3.0.0
+    dev: false
 
   /clean-stack/2.2.0:
     resolution: {integrity: sha512-4diC9HaTE+KRAMWhDhrGOECgWZxoevMc5TlkObMqNSsVU62PYzXZ/SMTjzyGAFF1YusgxGcSWTEXBhp0CPwQ1A==}
@@ -2596,6 +2650,15 @@ packages:
       interface-store: 2.0.2
       nanoid: 3.3.4
       uint8arrays: 3.0.0
+    dev: false
+
+  /interface-ipld-format/1.0.1:
+    resolution: {integrity: sha512-WV/ar+KQJVoQpqRDYdo7YPGYIUHJxCuOEhdvsRpzLqoOIVCqPKdMMYmsLL1nCRsF3yYNio+PAJbCKiv6drrEAg==}
+    deprecated: This module has been superseded by the multiformats module
+    dependencies:
+      cids: 1.1.9
+      multicodec: 3.2.1
+      multihashes: 4.0.3
     dev: false
 
   /interface-store/2.0.2:
@@ -3559,6 +3622,14 @@ packages:
       p-locate: 6.0.0
     dev: true
 
+  /lodash.get/4.4.2:
+    resolution: {integrity: sha512-z+Uw/vLuy6gQe8cfaFWD7p0wVv8fJl3mbzXh33RS+0oW2wvUqiRXiQ69gLWSLpgB5/6sU+r6BlQR0MBILadqTQ==}
+    dev: false
+
+  /lodash.set/4.3.2:
+    resolution: {integrity: sha512-4hNPN5jlm/N/HLMCO43v8BXKq9Z7QdAGc/VGrRD61w8gN9g/6jF9A4L1pbUgBLCffi0w9VsXfTOij5x8iTyFvg==}
+    dev: false
+
   /lodash.sortby/4.7.0:
     resolution: {integrity: sha512-HDWXG8isMntAyRF5vZ7xKuEvOhT4AhlRt/3czTSjvGUxjYCBVRQY48ViDHyfYz9VIoBkW4TMGQNapx+l3RUwdA==}
     dev: true
@@ -3727,6 +3798,14 @@ packages:
       - supports-color
     dev: false
 
+  /multibase/4.0.6:
+    resolution: {integrity: sha512-x23pDe5+svdLz/k5JPGCVdfn7Q5mZVMBETiC+ORfO+sor9Sgs0smJzAjfTbM5tckeCqnaUuMYoz+k3RXMmJClQ==}
+    engines: {node: '>=12.0.0', npm: '>=6.0.0'}
+    deprecated: This module has been superseded by the multiformats module
+    dependencies:
+      '@multiformats/base-x': 4.0.1
+    dev: false
+
   /multicast-dns/7.2.5:
     resolution: {integrity: sha512-2eznPJP8z2BFLX50tf0LuODrpINqP1RVIm/CObbTcBRITQgmC/TjcREF1NeTBzIcR5XO/ukWo+YHOjBbFwIupg==}
     hasBin: true
@@ -3735,8 +3814,37 @@ packages:
       thunky: 1.1.0
     dev: false
 
+  /multicodec/3.2.1:
+    resolution: {integrity: sha512-+expTPftro8VAW8kfvcuNNNBgb9gPeNYV9dn+z1kJRWF2vih+/S79f2RVeIwmrJBUJ6NT9IUPWnZDQvegEh5pw==}
+    deprecated: This module has been superseded by the multiformats module
+    dependencies:
+      uint8arrays: 3.0.0
+      varint: 6.0.0
+    dev: false
+
   /multiformats/9.6.5:
     resolution: {integrity: sha512-vMwf/FUO+qAPvl3vlSZEgEVFY/AxeZq5yg761ScF3CZsXgmTi/HGkicUiNN0CI4PW8FiY2P0OLklOcmQjdQJhw==}
+    dev: false
+
+  /multihashes/4.0.3:
+    resolution: {integrity: sha512-0AhMH7Iu95XjDLxIeuCOOE4t9+vQZsACyKZ9Fxw2pcsRmlX4iCn1mby0hS0bb+nQOVpdQYWPpnyusw4da5RPhA==}
+    engines: {node: '>=12.0.0', npm: '>=6.0.0'}
+    dependencies:
+      multibase: 4.0.6
+      uint8arrays: 3.0.0
+      varint: 5.0.2
+    dev: false
+
+  /multihashing-async/2.1.4:
+    resolution: {integrity: sha512-sB1MiQXPSBTNRVSJc2zM157PXgDtud2nMFUEIvBrsq5Wv96sUclMRK/ecjoP1T/W61UJBqt4tCTwMkUpt2Gbzg==}
+    engines: {node: '>=12.0.0', npm: '>=6.0.0'}
+    dependencies:
+      blakejs: 1.2.1
+      err-code: 3.0.1
+      js-sha3: 0.8.0
+      multihashes: 4.0.3
+      murmurhash3js-revisited: 3.0.0
+      uint8arrays: 3.0.0
     dev: false
 
   /murmurhash3js-revisited/3.0.0:
