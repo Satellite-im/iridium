@@ -4,7 +4,7 @@
     "target": "es2020",
     "module": "es2020",
     "moduleResolution": "node",
-    "types": ["node", "jest"],
+    "types": ["node"],
     "noResolve": false,
     "allowJs": true,
     "skipLibCheck": true,
