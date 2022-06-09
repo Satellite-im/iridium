@@ -27,7 +27,7 @@ export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
         Addresses: {
           Swarm: [],
         },
-        Bootstrap: []
+        Bootstrap: [],
         Discovery: {
           MDNS: {
             Enabled: true,
