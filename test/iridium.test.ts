@@ -1,6 +1,5 @@
 import test from 'ava';
 import { CID } from 'multiformats';
-
 import { sha256 } from 'multiformats/hashes/sha2';
 import Iridium from '../src/iridium';
 
@@ -20,17 +19,8 @@ const profile = {
   ],
 };
 
-async function makeClient(seed: string) {
-  return Iridium.fromSeed(await sha256.encode(te.encode(seed)), {
-    config: {
-      ipfs: {
-        Addresses: {
-          Swarm: ['/ip4/127.0.0.1/tcp/9001/ws'],
-        },
-        Bootstrap: ['/ip4/127.0.0.1/tcp/9090/ws/p2p-webrtc-star'],
-      },
-    },
-  });
+function makeClient(seed: string) {
+  return Iridium.fromSeed(await sha256.encode(te.encode(seed)));
 }
 
 test('it stores encrypted documents', async (t) => {
@@ -110,16 +100,15 @@ test('it sends and receives messages from other users', async (t) => {
     received = msg;
   });
 
-  await new Promise((resolve) => {
-    setTimeout(resolve, 1000);
-  });
+  console.info('waiting for a to be listening', a.id, a.peerId);
+  await b.waitForTopicPeer(a.id, a.peerId);
 
-  const message = { from: b.id, payload: 'hello' };
   console.info('sending message');
+  const message = { from: b.id, payload: 'hello' };
   await b.send(message, [a.id]);
 
   await new Promise((resolve) => {
-    setTimeout(resolve, 1000);
+    setTimeout(resolve, 3000);
   });
 
   t.deepEqual(received, message);

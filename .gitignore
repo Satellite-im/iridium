@@ -3,3 +3,4 @@ iridium/
 coverage/
 dist/
 sandbox.ts
+src/modules/ipfs-core/

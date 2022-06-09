@@ -8,7 +8,9 @@ import type { GeneralJWS } from 'dids';
 import EventEmitter from 'events';
 import set from 'lodash.set';
 import get from 'lodash.get';
+import pRetry from 'p-retry';
 import { ipfsNodeFromSeed } from './ipfs';
+import type { PeerId } from 'ipfs-core/ipns';
 const resolver = KeyDIDResolver.getResolver();
 
 export type IridiumStoreConfig = {
@@ -19,11 +21,6 @@ export type IridiumStoreConfig = {
 export type IridiumMessage = {
   jws?: GeneralJWS;
   jwe?: any;
-};
-
-export type IPFSEvent = {
-  from: string;
-  [key: string]: any;
 };
 
 export type IridiumConfig = {
@@ -118,7 +115,6 @@ export default class Iridium extends EventEmitter {
    * Listen for direct messages from other DIDs
    */
   async listenForDirectMessages() {
-    console.info('listening for direct messages on ' + this.id);
     await this.ipfs.pubsub.subscribe(this.id, async (message: any) => {
       const { from, payload } = message;
       const decoded = json.decode(payload) as IridiumMessage;
@@ -153,7 +149,6 @@ export default class Iridium extends EventEmitter {
   send(payload: any, dids: string[] | string) {
     return Promise.all(
       (Array.isArray(dids) ? dids : [dids]).map(async (did) => {
-        console.info('sending to ' + did);
         await this.ipfs.pubsub.publish(did, json.encode(payload), {
           timeout: 1000,
         });
@@ -384,6 +379,18 @@ export default class Iridium extends EventEmitter {
     this._ipnsCID = cid;
     this._ipnsDoc = next;
     return cid;
+  }
+
+  waitForTopicPeer(topic: string, peer: PeerId, retryOptions: any = {}) {
+    return pRetry(async () => {
+      const peers = await this.ipfs.pubsub.peers(topic);
+
+      if (!peers.includes(peer)) {
+        throw new Error(
+          `Could not find peer ${peer.toString()} in topic ${topic}`
+        );
+      }
+    }, retryOptions);
   }
 }
 

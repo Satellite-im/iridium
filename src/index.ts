@@ -1,4 +1,5 @@
 export { default as Iridium, default } from './iridium';
+export { default as Emitter } from './emitter';
 
 export type {
   IridiumConfig,
@@ -6,3 +7,5 @@ export type {
   IridiumMessage,
   IridiumStoreConfig,
 } from './iridium';
+
+export { ipfsNodeFromSeed, ipfsConfig } from './ipfs';

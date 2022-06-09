@@ -1,10 +1,9 @@
 import merge from 'merge';
 import { createFromPrivKey } from '@libp2p/peer-id-factory';
-import { create } from 'ipfs-core';
+import { create } from './modules/ipfs-core/ipfs-core';
 import type { IPFS } from 'ipfs-core';
 import { keys } from '@libp2p/crypto';
-import * as dagJose from 'dag-jose';
-import { IridiumConfig } from './iridium';
+import type { IridiumConfig } from './iridium';
 
 export async function ipfsNodeFromSeed(
   seed: Uint8Array,
@@ -28,6 +27,7 @@ export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
         Addresses: {
           Swarm: [],
         },
+        Bootstrap: []
         Discovery: {
           MDNS: {
             Enabled: true,
