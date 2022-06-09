@@ -1,7 +1,13 @@
 node_modules/
 iridium/
+example/iridium/
 coverage/
 dist/
 sandbox.ts
 src/modules/ipfs-core/
-example/
+.pnpm-debug.log
+.DS_Store
+
+src/sync*
+dist/sync*
+example/sync*
