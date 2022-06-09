@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "rootDir": ".",
+    "rootDir": "./src",
+    "declaration": true,
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "node",
@@ -18,9 +19,10 @@
     "noFallthroughCasesInSwitch": true,
     "outDir": "./dist"
   },
-  "include": ["./src/**/*", "./test/**/*"],
+  "include": ["./src/**/*"],
   "exclude": [
-    "./src/modules",
+    "./src/modules/**/*",
+    "./example/**/*",
     "./dist/**/*",
     "./coverage/**/*",
     "./node_modules/**/*",

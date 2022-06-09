@@ -20,7 +20,7 @@ const profile = {
 };
 
 function makeClient(seed: string) {
-  return Iridium.fromSeed(await sha256.encode(te.encode(seed)));
+  return Iridium.fromSeedString(seed);
 }
 
 test('it stores encrypted documents', async (t) => {

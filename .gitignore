@@ -4,3 +4,4 @@ coverage/
 dist/
 sandbox.ts
 src/modules/ipfs-core/
+example/

@@ -1,17 +1,20 @@
-import { DagJWS, DID } from 'dids';
+import { DagJWS, DID, JWSSignature } from 'dids';
 import { Ed25519Provider } from 'key-did-provider-ed25519';
 import KeyDIDResolver from 'key-did-resolver';
 import * as json from 'multiformats/codecs/json';
 import { CID } from 'multiformats';
 import type { IPFS } from 'ipfs-core';
 import type { GeneralJWS } from 'dids';
+import { sha256 } from 'multiformats/hashes/sha2';
 import EventEmitter from 'events';
 import set from 'lodash.set';
 import get from 'lodash.get';
 import pRetry from 'p-retry';
 import { ipfsNodeFromSeed } from './ipfs';
 import type { PeerId } from 'ipfs-core/ipns';
+
 const resolver = KeyDIDResolver.getResolver();
+const textEncoder = new TextEncoder();
 
 export type IridiumStoreConfig = {
   linkKeys?: string[];
@@ -62,7 +65,7 @@ export default class Iridium extends EventEmitter {
       config?: IridiumConfig;
       ipfs?: IPFS;
       peerId?: string;
-    }
+    } = {}
   ): Promise<Iridium> {
     const provider = new Ed25519Provider(seed);
     const did = new DID({
@@ -79,8 +82,32 @@ export default class Iridium extends EventEmitter {
       throw new Error('peerId is required');
     }
     const client = new Iridium(ipfs, peerId, did);
+    await client.listenForPeerAnnounce();
     await client.listenForDirectMessages();
+    await client.announce();
     return client;
+  }
+
+  /**
+   * Initialize an Iridium instance from seed string
+   * @param seed - string to initialize with
+   * @param config - configuration options
+   * @returns
+   */
+  static async fromSeedString(
+    seed: string,
+    {
+      config = {},
+      ipfs = undefined,
+      peerId = undefined,
+    }: {
+      config?: IridiumConfig;
+      ipfs?: IPFS;
+      peerId?: string;
+    } = {}
+  ): Promise<Iridium> {
+    const seedBytes = await sha256.encode(textEncoder.encode(seed));
+    return Iridium.fromSeed(seedBytes, { config, ipfs, peerId });
   }
 
   /**
@@ -109,6 +136,38 @@ export default class Iridium extends EventEmitter {
    */
   get peerId(): string {
     return this._peerId.toString();
+  }
+
+  /**
+   * Listen for announcements from other peers
+   */
+  async listenForPeerAnnounce() {
+    await this.ipfs.pubsub.subscribe(
+      'iridium:announce',
+      async (message: any) => {
+        const { from, data } = message;
+        const { jws } = json.decode(data);
+        if (!jws) {
+          return this.emit('error', {
+            message: 'failed to decode payload',
+            from,
+            data,
+          });
+        }
+
+        const verification = await this.did.verifyJWS(jws as DagJWS);
+
+        if (verification && verification.payload) {
+          const { did, meta } = verification.payload;
+
+          this.emit('peer', {
+            id: from.toString(),
+            did,
+            meta,
+          });
+        }
+      }
+    );
   }
 
   /**
@@ -141,19 +200,38 @@ export default class Iridium extends EventEmitter {
   }
 
   /**
-   * Send an unsigned & unencrypted payload to a list of DIDs
+   * Broadcast announce payload to all peers
    * @param payload
    * @param dids
    * @returns
    */
-  send(payload: any, dids: string[] | string) {
+  announce(meta: any = {}) {
+    return this.broadcastSigned('iridium:announce', {
+      peerId: this.id,
+      did: this.did.id,
+      meta,
+    });
+  }
+
+  /**
+   * Send a payload to a list of DIDs
+   * @param payload
+   * @param dids
+   * @returns
+   */
+  send(payload: any, dids: string[] | string, options: any = {}) {
     return Promise.all(
       (Array.isArray(dids) ? dids : [dids]).map(async (did) => {
-        await this.ipfs.pubsub.publish(did, json.encode(payload), {
-          timeout: 1000,
-        });
+        await this.ipfs.pubsub.publish(did, payload, options);
       })
     );
+  }
+
+  /**
+   * Broadcast a payload to all peers
+   */
+  async broadcast(channel: string, payload: any, options: any = {}) {
+    return this.ipfs.pubsub.publish(channel, json.encode(payload), options);
   }
 
   /**
@@ -162,9 +240,20 @@ export default class Iridium extends EventEmitter {
    * @param dids
    * @returns
    */
-  sendSigned(payload: any, dids: string[]) {
-    const jws = this.did.createJWS(payload);
+  async sendSigned(payload: any, dids: string[]) {
+    const jws = await this.did.createJWS(payload);
     return this.send({ jws }, Array.isArray(dids) ? dids : [dids]);
+  }
+
+  /**
+   * Send a signed payload to a list of DIDs
+   * @param payload
+   * @param dids
+   * @returns
+   */
+  async broadcastSigned(channel: string, payload: any, options: any = {}) {
+    const jws = await this.did.createJWS(payload);
+    return this.broadcast(channel, { jws }, options);
   }
 
   /**
@@ -204,7 +293,7 @@ export default class Iridium extends EventEmitter {
    */
   async loadSigned(cid: CID, options = {}) {
     const jws = (await this.ipfs.dag.get(cid, options)) as unknown as DagJWS;
-    if (!this.did.verifyJWS(jws)) {
+    if (!(await this.did.verifyJWS(jws))) {
       throw new Error('invalid signature');
     }
     return jws.payload;
@@ -243,7 +332,6 @@ export default class Iridium extends EventEmitter {
 
     const jwe = await this.did.createDagJWE(stored, dids);
     return this.ipfs.dag.put(jwe, {
-      timeout: 3000,
       pin: true,
       storeCodec: 'dag-jose',
       hashAlg: 'sha2-256',
@@ -258,10 +346,15 @@ export default class Iridium extends EventEmitter {
    * @param options
    * @returns
    */
-  async sendEncrypted(payload: any, dids: string[], options = {}) {
+  async sendEncrypted(
+    payload: any,
+    dids: string[],
+    sendOptions = {},
+    jweOptions = {}
+  ) {
     const encoded = json.encode(payload);
-    const jwe = await this.did.createJWE(encoded, dids, options);
-    return this.send({ jwe }, Array.isArray(dids) ? dids : [dids]);
+    const jwe = await this.did.createJWE(encoded, dids, jweOptions);
+    return this.send({ jwe }, Array.isArray(dids) ? dids : [dids], sendOptions);
   }
 
   /**
@@ -271,7 +364,7 @@ export default class Iridium extends EventEmitter {
    * @returns
    */
   async readEncrypted(cid: CID, options = {}) {
-    const doc = await this.ipfs.dag.get(cid, { ...options, timeout: 3000 });
+    const doc = await this.ipfs.dag.get(cid, options);
     if (!doc) {
       throw new Error('dag CID not found');
     }
@@ -290,10 +383,7 @@ export default class Iridium extends EventEmitter {
       await Promise.all(
         Object.keys(object._links).map(async (key) => {
           const cid = object._links[key];
-          const child = await this.loadEncrypted(cid, {
-            ...linkOptions,
-            timeout: 3000,
-          });
+          const child = await this.loadEncrypted(cid, linkOptions);
           object[key] = child;
         })
       );
@@ -329,17 +419,14 @@ export default class Iridium extends EventEmitter {
     }
 
     let _root;
-    for await (const cidStr of this.ipfs.name.resolve(this.peerId, {
-      timeout: 3000,
-    })) {
+    for await (const cidStr of this.ipfs.name.resolve(this.peerId)) {
       if (cidStr) {
         const cid = CID.parse(cidStr.substring(6));
         this._ipnsCID = cid;
         try {
-          const doc = await this.loadEncrypted(cid, {
-            ...options,
-            timeout: 3000,
-          }).catch(() => undefined);
+          const doc = await this.loadEncrypted(cid, options).catch(
+            () => undefined
+          );
           if (doc) {
             _root = doc;
           }
@@ -369,7 +456,6 @@ export default class Iridium extends EventEmitter {
     }
     const cid = await this.storeEncrypted(next, [this.did.id], {
       ...options,
-      timeout: 3000,
       pin: true,
     });
     this.ipfs.name.publish(cid, {
@@ -381,13 +467,19 @@ export default class Iridium extends EventEmitter {
     return cid;
   }
 
-  waitForTopicPeer(topic: string, peer: PeerId, retryOptions: any = {}) {
+  waitForTopicPeer(
+    topic: string,
+    peer: PeerId | string,
+    retryOptions: any = {}
+  ) {
+    const peerIdString = typeof peer !== 'string' ? peer.toString() : peer;
     return pRetry(async () => {
       const peers = await this.ipfs.pubsub.peers(topic);
+      const peerIds = peers.map((p) => p.toString());
 
-      if (!peers.includes(peer)) {
+      if (!peerIds.includes(peerIdString)) {
         throw new Error(
-          `Could not find peer ${peer.toString()} in topic ${topic}`
+          `Could not find peer ${peerIdString} in topic ${topic}`
         );
       }
     }, retryOptions);

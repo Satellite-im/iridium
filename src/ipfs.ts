@@ -1,6 +1,6 @@
 import merge from 'merge';
 import { createFromPrivKey } from '@libp2p/peer-id-factory';
-import { create } from './modules/ipfs-core/ipfs-core';
+import { create } from 'ipfs-core';
 import type { IPFS } from 'ipfs-core';
 import { keys } from '@libp2p/crypto';
 import type { IridiumConfig } from './iridium';
