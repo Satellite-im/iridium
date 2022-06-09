@@ -24,14 +24,10 @@ export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
         config.version || 'v1.0.0'
       }/${peerId.toString()}`,
       config: {
-        Addresses: {
-          Swarm: [],
-        },
-        Bootstrap: [],
         Discovery: {
           MDNS: {
             Enabled: true,
-            Interval: 0.1,
+            Interval: 1,
           },
           webRTCStar: {
             Enabled: true,
@@ -44,6 +40,10 @@ export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
           DisableRelay: false,
           EnableRelayHop: true,
         },
+        Datastore: {
+          GCPeriod: '1h',
+          StorageGCWatermark: 90,
+        },
       },
       relay: {
         enabled: true,
@@ -51,6 +51,9 @@ export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
           enabled: true,
           active: true,
         },
+      },
+      EXPERIMENTAL: {
+        pubsub: true,
       },
       init: {
         privateKey: peerId,
