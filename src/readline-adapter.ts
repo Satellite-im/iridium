@@ -1,5 +1,6 @@
 import * as json from 'multiformats/codecs/json';
 import minimist from 'minimist';
+import { parseArgsStringToArgv } from 'string-argv';
 import Iridium from './iridium';
 import type { IridiumMessage } from './iridium';
 import Emitter from './emitter';
@@ -55,18 +56,34 @@ export default class IridiumTerminal extends Emitter<IridiumMessage> {
     const {
       _: [cmd, ...args],
       ...props
-    } = minimist(line.split(' '));
+    } = minimist(parseArgsStringToArgv(line));
     const command = this.command(cmd);
-    const input = args.map((arg) =>
-      arg.startsWith('enc:')
-        ? textEncoder.encode(arg.substring(4))
-        : arg.startsWith('json:')
-        ? JSON.parse(arg.substring(5))
-        : arg
+    const input = await Promise.all(
+      args.map(async (arg) => {
+        let matches;
+        if ((matches = arg.match(/^json:'([^']+)'$/))) {
+          return JSON.parse(matches[1]);
+        }
+
+        if ((matches = arg.match(/^enc:'([^']+)'$/))) {
+          return textEncoder.encode(matches[1]);
+        }
+
+        if ((matches = arg.match(/^jsonenc:'([^']+)'$/))) {
+          return json.encode(textEncoder.encode(matches[1]));
+        }
+
+        return arg;
+      })
     );
+    console.info({ args, input });
     try {
       const result = await command(...input);
-      console.info(JSON.stringify(result, null, 2));
+      if (props.json) {
+        console.info(JSON.stringify(result, null, 2));
+      } else {
+        console.info(result);
+      }
     } catch (e) {
       console.error(e);
     }

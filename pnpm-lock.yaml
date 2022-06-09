@@ -37,6 +37,7 @@ specifiers:
   rollup: ^2.75.6
   rollup-plugin-esbuild: ^4.9.1
   size-limit: ^7.0.8
+  string-argv: ^0.3.1
   ts-lib: ^0.0.5
   ts-node: ^10.8.1
   tslib: ^2.4.0
@@ -64,6 +65,7 @@ dependencies:
   merge: 2.1.1
   multiformats: 9.6.5
   p-retry: 5.1.1
+  string-argv: 0.3.1
 
 devDependencies:
   '@ava/typescript': 3.0.1
@@ -5020,6 +5022,11 @@ packages:
     resolution: {integrity: sha512-4vEbkSs83OahpmBybNJXlJd7d6/RxzkkSdT3I0mnGt79Xd2Kk+e1JqbvAvsQfCeKj3aKb0QIWkyK3/n0j506vQ==}
     dependencies:
       get-iterator: 1.0.2
+    dev: false
+
+  /string-argv/0.3.1:
+    resolution: {integrity: sha512-a1uQGz7IyVy9YwhqjZIZu1c8JO8dNIe20xBmSS6qu9kv++k3JGzCVmprbNN5Kn+BgzD5E7YYwg1CcjuJMRNsvg==}
+    engines: {node: '>=0.6.19'}
     dev: false
 
   /string-width/4.2.3:
