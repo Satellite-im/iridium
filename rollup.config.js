@@ -26,7 +26,6 @@ const config = [
           '.json': 'json',
         },
       }),
-      dts(),
     ],
   },
   {
