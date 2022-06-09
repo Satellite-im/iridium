@@ -38,7 +38,7 @@
     "watch:ipfs": "esbuild ./node_modules/ipfs-core --bundle --format=esm --sourcemap --main-fields=browser,module,main --inject:./src/modules/globals.js --define:globalThis.process.env.NODE_ENV='\"production\"' --splitting --outdir=./src/modules/ipfs-core --watch",
     "watch": "pnpm watch:ipfs & pnpm watch:browser & pnpm watch:node",
     "example:user-a": "node --no-warnings --experimental-specifier-resolution=node example/user-a.js",
-    "example:user-b": "node --no-warnings --experimental-specifier-resolution=node example/user-a.js",
+    "example:user-b": "node --no-warnings --experimental-specifier-resolution=node example/user-b.js",
     "example:sync": "node --no-warnings --experimental-specifier-resolution=node example/sync.js",
     "test": "ava",
     "lint": "eslint",
