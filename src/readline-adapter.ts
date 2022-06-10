@@ -47,6 +47,12 @@ export default class IridiumTerminal extends Emitter<IridiumMessage> {
       clear: () => {
         console.clear();
       },
+      exit: async () => {
+        await instance.stop();
+        console.clear();
+        console.info('shutting down');
+        process.exit(0);
+      },
       ...customCommands,
     };
     this._help = help;
