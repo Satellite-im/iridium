@@ -8,4 +8,4 @@ export type {
   IridiumStoreConfig,
 } from './iridium';
 
-export { ipfsNodeFromSeed, ipfsConfig } from './ipfs';
+export { ipfsNodeFromKey, ipfsConfig } from './ipfs';

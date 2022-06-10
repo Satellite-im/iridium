@@ -1,9 +1,8 @@
 import { DagJWS, DID } from 'dids';
-import { Ed25519Provider } from 'key-did-provider-ed25519';
+import { IridiumEd25519Provider, encodeDID } from './did-provider';
 import KeyDIDResolver from 'key-did-resolver';
 import { peerIdFromString } from '@libp2p/peer-id';
 import * as json from 'multiformats/codecs/json';
-import { base58btc } from 'multiformats/bases/base58';
 import { CID } from 'multiformats';
 import type { IPFS } from 'ipfs-core';
 import type { GeneralJWS } from 'dids';
@@ -11,9 +10,10 @@ import { sha256 } from 'multiformats/hashes/sha2';
 import set from 'lodash.set';
 import get from 'lodash.get';
 import pRetry from 'p-retry';
-import { ipfsNodeFromSeed } from './ipfs';
+import { ipfsNodeFromKey } from './ipfs';
 import type { PeerId } from 'ipfs-core/ipns';
 import Emitter from './emitter';
+import { keys } from '@libp2p/crypto';
 
 const resolver = KeyDIDResolver.getResolver();
 const textEncoder = new TextEncoder();
@@ -96,14 +96,18 @@ export default class Iridium extends Emitter<IridiumMessage> {
       peerId?: string;
     } = {}
   ): Promise<Iridium> {
-    const provider = new Ed25519Provider(seed);
+    const key = await keys.supportedKeys.ed25519.generateKeyPairFromSeed(seed);
+    const provider = new IridiumEd25519Provider(
+      key.bytes.slice(4),
+      key.public.bytes.slice(4)
+    );
     const did = new DID({
       provider,
       resolver,
     });
     await did.authenticate();
     if (!ipfs) {
-      const init = await ipfsNodeFromSeed(seed, config);
+      const init = await ipfsNodeFromKey(key, config);
       ipfs = init.ipfs;
       peerId = init.peerId;
     }
@@ -145,16 +149,8 @@ export default class Iridium extends Emitter<IridiumMessage> {
    * @param config
    * @returns
    */
-  static didFromPublicKey(
-    publicKey: Uint8Array,
-    keycodec = 0xed,
-    multicodec = 0x01
-  ) {
-    const bytes = new Uint8Array(publicKey.length + 2);
-    bytes[0] = keycodec;
-    bytes[1] = multicodec;
-    bytes.set(publicKey, 2);
-    return `did:key:${base58btc.encode(bytes)}`;
+  static didFromPublicKey(publicKey: Uint8Array) {
+    return encodeDID(publicKey);
   }
 
   /**
@@ -167,7 +163,7 @@ export default class Iridium extends Emitter<IridiumMessage> {
       throw new Error('invalid peerId');
     }
 
-    return this.didFromPublicKey(pid.publicKey);
+    return this.didFromPublicKey(pid.publicKey.slice(4));
   }
 
   async start(

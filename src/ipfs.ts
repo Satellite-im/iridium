@@ -1,15 +1,14 @@
 import merge from 'merge';
 import { createFromPrivKey } from '@libp2p/peer-id-factory';
+import type { PrivateKey } from '@libp2p/interfaces/src/keys';
 import { create } from 'ipfs-core';
 import type { IPFS } from 'ipfs-core';
-import { keys } from '@libp2p/crypto';
 import type { IridiumConfig } from './iridium';
 
-export async function ipfsNodeFromSeed(
-  seed: Uint8Array,
+export async function ipfsNodeFromKey(
+  key: PrivateKey,
   config: IridiumConfig = {}
 ): Promise<{ ipfs: IPFS; peerId: string }> {
-  const key = await keys.supportedKeys.ed25519.generateKeyPairFromSeed(seed);
   const peerId = await createFromPrivKey(key);
   return {
     ipfs: await create(ipfsConfig(peerId, config)),
