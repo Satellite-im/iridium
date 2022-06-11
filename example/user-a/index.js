@@ -3,33 +3,32 @@ import { stdin as input, stdout as output } from 'node:process';
 
 const rl = readline.createInterface({ input, output });
 
-import Iridium from '../dist/index.js';
-import IridiumTerminal from '../dist/readline-adapter';
+import Iridium from '../../dist/index.js';
+import IridiumTerminal from '../../dist/readline-adapter';
 
-/*
-{
-  peerId: '12D3KooWJ1KLJy1UiNZWGe96WPgsRjWKnZQQ6erbc5KebT5sne6e',
-  did: 'did:key:z6MkneDDA5gCs1nUyFUNZMuNW2yV7odcUr2ULVsZ3jtzovA6'
-}
-*/
 const client = await Iridium.fromSeedString('user a seed', {
   config: {
-    ipfs: {
-      config: {
-        Addresses: {
-          Swarm: ['/ip4/127.0.0.1/tcp/4003', '/ip4/127.0.0.1/tcp/4004/ws'],
-        },
-      },
-      Bootstrap: [
-        '/ip4/127.0.0.1/tcp/4006/ws/p2p/12D3KooWJ1KLJy1UiNZWGe96WPgsRjWKnZQQ6erbc5KebT5sne6e',
-      ],
-    },
     followedPeers: ['12D3KooWJANMEJ97LJzLFH6N5Wgz63v8Qrv5rvyTm1iHu7asPasp'],
   },
 });
 
+await client.ipfs.bootstrap.add(
+  `/ip4/127.0.0.1/tcp/4001/ipfs/${client.peerId}`
+);
+await client.ipfs.bootstrap.add(
+  `/ip4/127.0.0.1/tcp/9090/ws/p2p-webrtc-star/ipfs/${client.peerId}`
+);
+// add pinata pinning service
+const pins = await client.ipfs.pin.ls();
+console.info(`Pins: ${pins?.length || 0}`);
+console.info(`----+----`);
+for await (const pin of pins) {
+  console.info(`    | ${pin.cid}`);
+}
+
 const terminal = new IridiumTerminal(client);
 await client.start();
+await terminal.exec('whoami');
 
 while (true) {
   const line = await rl.question('> ');

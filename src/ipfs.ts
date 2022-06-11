@@ -4,6 +4,7 @@ import type { PrivateKey } from '@libp2p/interfaces/src/keys';
 import { create } from 'ipfs-core';
 import type { IPFS } from 'ipfs-core';
 import type { IridiumConfig } from './iridium';
+import type { PeerId } from 'ipfs-core/ipns';
 
 export async function ipfsNodeFromKey(
   key: PrivateKey,
@@ -16,12 +17,10 @@ export async function ipfsNodeFromKey(
   };
 }
 
-export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
+export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
   return merge(
     {
-      repo: `${config.repo || 'iridium'}/${
-        config.version || 'v1.0.0'
-      }/${peerId.toString()}`,
+      repo: `${config.repo || 'iridium'}/${config.version || 'v1.0.0'}`,
       config: {
         Discovery: {
           MDNS: {
@@ -32,27 +31,29 @@ export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
             Enabled: true,
           },
         },
+        Experimental: {
+          ShardingEnabled: true,
+          FilestoreEnabled: true,
+          Libp2pStreamMounting: true,
+        },
         Pubsub: {
           Enabled: true,
+          Router: 'floodsub',
         },
         Swarm: {
           DisableRelay: false,
           EnableRelayHop: true,
+          EnableAutoNATService: false,
+          EnableAutoRelay: true,
         },
         Datastore: {
           GCPeriod: '1h',
           StorageGCWatermark: 90,
         },
-      },
-      relay: {
-        enabled: true,
-        hop: {
-          enabled: true,
-          active: true,
+        Router: {
+          Enabled: true,
+          Type: 'dht',
         },
-      },
-      EXPERIMENTAL: {
-        pubsub: true,
       },
       init: {
         privateKey: peerId,

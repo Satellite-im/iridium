@@ -41,6 +41,11 @@ export default class IridiumTerminal extends Emitter<IridiumMessage> {
       get: instance.get.bind(instance),
       set: instance.set.bind(instance),
       help: this.help.bind(this),
+      eval: async (code) => {
+        const result = eval(code);
+        console.log(await result);
+        return;
+      },
       whoami: () => {
         return { peerId: instance.peerId, did: instance.id };
       },
@@ -49,8 +54,6 @@ export default class IridiumTerminal extends Emitter<IridiumMessage> {
       },
       exit: async () => {
         await instance.stop();
-        console.clear();
-        console.info('shutting down');
         process.exit(0);
       },
       ...customCommands,
@@ -82,7 +85,6 @@ export default class IridiumTerminal extends Emitter<IridiumMessage> {
         return arg;
       })
     );
-    console.info({ args, input });
     try {
       const result = await command(...input);
       if (props.json) {

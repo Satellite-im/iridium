@@ -3,9 +3,10 @@ import { IridiumEd25519Provider, encodeDID } from './did-provider';
 import KeyDIDResolver from 'key-did-resolver';
 import { peerIdFromString } from '@libp2p/peer-id';
 import * as json from 'multiformats/codecs/json';
-import { CID } from 'multiformats';
+import { CID } from 'multiformats/cid';
 import type { IPFS } from 'ipfs-core';
 import type { GeneralJWS } from 'dids';
+import * as dagJose from 'dag-jose';
 import { sha256 } from 'multiformats/hashes/sha2';
 import set from 'lodash.set';
 import get from 'lodash.get';
@@ -47,10 +48,7 @@ export type IridiumConfig = {
 };
 
 export type IridiumStartConfig = {
-  listenForAnnounce?: boolean;
   listenForDirect?: boolean;
-  announce?: boolean;
-  announceInterval?: number;
 };
 
 export type IridiumDocument = {
@@ -104,8 +102,13 @@ export default class Iridium extends Emitter<IridiumMessage> {
     const did = new DID({
       provider,
       resolver,
+      resolverOptions: {
+        cache: true,
+      },
     });
-    await did.authenticate();
+    await did.authenticate({
+      aud: 'iridium',
+    });
     if (!ipfs) {
       const init = await ipfsNodeFromKey(key, config);
       ipfs = init.ipfs;
@@ -168,22 +171,11 @@ export default class Iridium extends Emitter<IridiumMessage> {
 
   async start(
     config: IridiumStartConfig = {
-      announce: true,
-      listenForAnnounce: true,
       listenForDirect: true,
-      announceInterval: 60000,
     }
   ) {
     if (config.listenForDirect) {
       await this.listenForDirectMessages();
-    }
-    if (config.announce) {
-      setTimeout(async () => {
-        await this.announce();
-      }, 1000);
-    }
-    if (config.announceInterval) {
-      this._timers.announce = this.announceInterval(config.announceInterval);
     }
 
     // if node, stop on sigint
@@ -307,19 +299,6 @@ export default class Iridium extends Emitter<IridiumMessage> {
 
           const { type = 'message', ...data } = verified.payload as any;
 
-          if (type === 'announce') {
-            if (!this._peers[from]) {
-              this._peers[from] = {
-                id: from,
-                did: data.did,
-                meta: data.meta,
-                seen: Date.now(),
-              };
-            } else {
-              this._peers[from].seen = Date.now();
-            }
-          }
-
           return this.emit(`peer:${type}`, {
             from,
             payload: data,
@@ -365,7 +344,10 @@ export default class Iridium extends Emitter<IridiumMessage> {
         }
       }
     });
-    console.info('[iridium] listening for direct communications');
+    console.info(
+      '[iridium] listening for direct communications',
+      `${this.peerId}:direct`
+    );
     await this.ipfs.pubsub.subscribe(
       `${this.peerId}:direct`,
       async (message: any) => {
@@ -404,46 +386,9 @@ export default class Iridium extends Emitter<IridiumMessage> {
         onError: (err: any) => {
           console.error('pubsub error', err);
         },
-        timeout: 1000,
+        timeout: 3000,
       }
     );
-  }
-
-  /**
-   * Broadcast announce payload to all peers
-   * @param meta - meta data to include in the announce payload
-   * @returns
-   */
-  announce(meta: any = {}) {
-    return this.broadcastSigned(`${this.peerId}:broadcast`, {
-      type: 'announce',
-      did: this.id,
-      meta,
-    });
-  }
-
-  /**
-   * Announce to all peers on an interval. Returns from setInterval.
-   * @param interval
-   * @returns
-   */
-  announceInterval(interval: number) {
-    console.info(
-      `[iridium] establishing announce interval (every ${interval}ms)`
-    );
-    return setInterval(async () => {
-      // check for peers that haven't been seen in a while
-      const now = Date.now();
-      const peers = Object.values(this._peers);
-      const stale = peers.filter((peer) => now - peer.seen > 300000);
-      if (stale.length) {
-        console.info(`[iridium] removing stale peers (${stale.length})`);
-        stale.forEach((peer) => {
-          delete this._peers[peer.id];
-        });
-      }
-      await this.announce();
-    }, interval);
   }
 
   /**
@@ -455,11 +400,11 @@ export default class Iridium extends Emitter<IridiumMessage> {
   send(payload: any, peerIds: string[] | string, options: any = {}) {
     return Promise.all(
       (Array.isArray(peerIds) ? peerIds : [peerIds]).map(async (peerId) => {
-        console.info('[iridium] sending message to', peerId, payload);
+        console.info('[iridium] sending message to', `${peerId}:direct`);
         return this.ipfs.pubsub.publish(
           `${peerId}:direct`,
           json.encode(payload),
-          options
+          { onError: (err: any) => console.error(err), ...options }
         );
       })
     );
@@ -539,9 +484,17 @@ export default class Iridium extends Emitter<IridiumMessage> {
    * @param options
    * @returns
    */
-  async load(cid: CID, options = {}) {
-    const doc = await this.ipfs.dag.get(cid, options);
-    return json.decode(doc.value);
+  async load(cid: CID | string, options: any = {}) {
+    if (typeof cid === 'string') {
+      cid = CID.parse(cid);
+    }
+    const doc = await this.ipfs.dag
+      .get(cid, {
+        localResolve: true,
+        ...options,
+      })
+      .catch(() => undefined);
+    return doc?.value || ({} as IridiumDocument);
   }
 
   /**
@@ -551,7 +504,7 @@ export default class Iridium extends Emitter<IridiumMessage> {
    * @returns
    */
   async loadSigned(cid: CID, options = {}) {
-    const jws = (await this.ipfs.dag.get(cid, options)) as unknown as DagJWS;
+    const jws = (await this.load(cid, options)) as DagJWS;
     if (!(await this.did.verifyJWS(jws))) {
       throw new Error('invalid signature');
     }
@@ -590,12 +543,14 @@ export default class Iridium extends Emitter<IridiumMessage> {
     );
 
     const jwe = await this.did.createDagJWE(stored, dids);
-    return this.ipfs.dag.put(jwe, {
-      pin: true,
+    const cid = await this.ipfs.dag.put(jwe, {
       storeCodec: 'dag-jose',
       hashAlg: 'sha2-256',
-      ...options,
     });
+    console.info('dag put cid', cid);
+    await this.ipfs.pin.add(cid);
+    console.info('dag cid pinned', cid);
+    return cid;
   }
 
   /**
@@ -621,38 +576,41 @@ export default class Iridium extends Emitter<IridiumMessage> {
   }
 
   /**
-   * Read a signed and encrypted payload from the IPFS DAG
-   * @param cid
-   * @param options
-   * @returns
-   */
-  async readEncrypted(cid: CID, options = {}) {
-    const doc = await this.ipfs.dag.get(cid, options);
-    if (!doc) {
-      throw new Error('dag CID not found');
-    }
-    const jwe = doc.value;
-    return this.did.decryptDagJWE(jwe);
-  }
-
-  /**
    * Decrypt a signed and encrypted payload, automatically unrolling linked data
    * @param cid
    * @param options
    */
-  async loadEncrypted(cid: CID, options = {}, linkOptions = {}) {
-    const object = await this.readEncrypted(cid, options);
-    if (object._links) {
-      await Promise.all(
-        Object.keys(object._links).map(async (key) => {
-          const cid = object._links[key];
-          const child = await this.loadEncrypted(cid, linkOptions);
-          object[key] = child;
-        })
-      );
-      delete object._links;
+  async loadEncrypted(
+    cid: CID,
+    options = {},
+    linkOptions = {}
+  ): Promise<IridiumDocument> {
+    console.info('[iridium] loading document', cid);
+    const doc = await this.load(cid, options);
+    try {
+      console.info('[iridium] decrypting document', cid);
+      const object = await this.decrypt(doc, options);
+      if (object._links) {
+        console.info('[iridium] processing document links', cid);
+        await Promise.all(
+          Object.keys(object._links).map(async (key) => {
+            const cid = object._links[key];
+            try {
+              console.info('[iridium] loaded encrypted document link', cid);
+              const child = await this.loadEncrypted(cid, linkOptions);
+              object[key] = child;
+            } catch (e) {
+              console.warn(`failed to load linked data: ${cid}`);
+            }
+          })
+        );
+        delete object._links;
+      }
+      return object;
+    } catch (err) {
+      console.error(err);
+      return doc;
     }
-    return object;
   }
 
   /**
@@ -663,7 +621,7 @@ export default class Iridium extends Emitter<IridiumMessage> {
    */
   async decrypt(jwe: any, options = {}) {
     const encoded = await this.did.decryptJWE(jwe, options);
-    return json.decode(encoded);
+    return json.decode(encoded) as IridiumDocument;
   }
 
   /**
@@ -681,24 +639,39 @@ export default class Iridium extends Emitter<IridiumMessage> {
       options.path = path;
     }
 
-    let _root;
-    for await (const cidStr of this.ipfs.name.resolve(this.peerId)) {
+    let _root: IridiumDocument = {};
+    for await (const cidStr of this.ipfs.name.resolve(this.peerId, {
+      recursive: true,
+      timeout: 3000,
+      ...options,
+    })) {
+      console.info(`resolved ${cidStr}`);
       if (cidStr) {
         const cid = CID.parse(cidStr.substring(6));
         this._ipnsCID = cid;
         try {
-          const doc = await this.loadEncrypted(cid, options).catch(
-            () => undefined
+          console.info('loading ipns doc', cid);
+          const doc = await this.loadEncrypted(
+            cid,
+            {
+              timeout: 3000,
+              ...options,
+            },
+            {
+              timeout: 3000,
+              ...(options.links || {}),
+            }
           );
           if (doc) {
             _root = doc;
           }
         } catch (_) {
-          console.error('failed to load encrypted document');
+          console.error('failed to load encrypted document', _);
         }
       }
     }
-    this._ipnsDoc = _root || {};
+    console.info('loaded root document', _root);
+    this._ipnsDoc = _root;
     return this._ipnsDoc;
   }
 
@@ -707,7 +680,7 @@ export default class Iridium extends Emitter<IridiumMessage> {
    * @param object
    * @returns
    */
-  async set(path = '/', object: any, options = {}) {
+  async set(path = '/', object: any, options: any = {}) {
     if (!this._ipnsCID || !this._ipnsDoc) {
       await this.get('/');
     }
@@ -721,10 +694,14 @@ export default class Iridium extends Emitter<IridiumMessage> {
       ...options,
       pin: true,
     });
-    await this.ipfs.name.publish(cid, {
-      resolve: false,
-      lifetime: '7d',
-    });
+    await this.ipfs.name
+      .publish(`/ipfs/${cid}`, {
+        allowOffline: true,
+        ttl: options.ttl || 0,
+        timeout: options.timeout || 3000,
+        resolve: false,
+      })
+      .catch(() => {});
     this._ipnsCID = cid;
     this._ipnsDoc = next;
     return cid;
