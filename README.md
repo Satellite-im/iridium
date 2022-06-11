@@ -5,35 +5,107 @@ Iridium is a loosely defined protocol for peer to peer communication and storage
 ## Create an Iridium Instance
 
 ```js
-const iridum = Iridium.fromSeed(
-  uint8SeedBytes,
-  // IridiumConfig options
-  { config: { bootstrap: bootstrapUrls, swarm: swarmUrls } }
-);
+const client = await Iridium.fromSeedString('user a seed', {
+  config: {
+    // peerIds to automatically establish a connection with
+    followedPeers: ['12D3KooWJANMEJ97LJzLFH6N5Wgz63v8Qrv5rvyTm1iHu7asPasp'],
+    // ipfs node config
+    ipfs: {
+      config: {
+        Addresses: {
+          // addresses to LISTEN ON
+          Swarm: ['/ip4/127.0.0.1/tcp/9000', '/ip4/127.0.0.1/tcp/9001/ws'],
+        },
+        Boostrap: [
+          // addresses to CONNECT TO
+        ],
+      },
+      libp2p: {
+        // p2p configuration
+      },
+    },
+  },
+});
 ```
 
-## Send a Message
+## Direct Communication
 
 ```js
-// messages are automatically signed and encrypted with a shared key
-await iridium.send(someOtherDID, 'friend:request', {
+await iridium.send(someOtherDID, {
+  type: 'friend:request',
   displayName,
+  profilePicture,
+});
+
+await iridium.sendSigned(someOtherDID, {
+  type: 'signed:message',
+  data,
+});
+
+await iridium.sendEncrypted(someOtherDID, {
+  type: 'secret:message',
+  data,
+});
+
+iridium.on('message', ({ from, payload }) => {
+  const { type } = payload;
+  if (type === 'friend:request') {
+    /* ... */
+  } else if (type === 'signed:message') {
+    /* ... */
+  } else if (type === 'secret:message') {
+    /* ... */
+  }
+});
+```
+
+## Pubsub
+
+```js
+// user-b
+iridium.followPeer(userAPeerId);
+iridium.on('peer:channel_name', ({ from, payload }) => {
+  if (from === userAPeerId) {
+    // do a thing
+  }
+});
+
+// user-a
+await iridium.broadcast('channel_name', payload);
+```
+
+## Managing User Documents
+
+```js
+// fetch the root level IPNS document
+const userData = await iridium.get('/');
+await iridium.set('/profile', {
+  name: 'foo bar',
+  friends: [
+    {
+      id: 1,
+      name: 'bar baz',
+    },
+  ],
+});
+const friend = await iridium.get('/profile/friends/0');
+await iridium.set('/profile/friends/0', {
+  ...friend,
   profilePicture,
 });
 ```
 
-## Read Data
+## Managing Other Documents
 
 ```js
-// fetch the root level IPNS document
-const profileData = await iridium.loadIPNS();
+// plaintext
+const cid = await iridium.store(document);
+const doc = await iridium.load(cid);
 
-// fetch a specific value from the root document using a string path
-const doc = await iridium.loadEncrypted(someCID);
+// signed (JWS)
+const cid = await iridium.storeSigned(document, arrayOfTargetDIDs);
+const doc = await iridium.loadSigned(cid); // throws if signature invalid
 
-// read a value from a document
-const numFriends = await iridium.loadEncrypted(profileCID, {
-  path: 'friends/count',
-});
-const cid = await iridum.loadEncrypted(profileCID, { path: 'profile/0' });
+const cid = await iridium.storeEncrypted(document, arrayOfTargetDIDs);
+const doc = await iridiumloadEncrypted(document); // throws if signature/encryption invalid
 ```

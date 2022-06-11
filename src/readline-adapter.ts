@@ -49,6 +49,14 @@ export default class IridiumTerminal extends Emitter<IridiumMessage> {
       whoami: () => {
         return { peerId: instance.peerId, did: instance.id };
       },
+      pins: async () => {
+        const pins = await instance.ipfs.pin.ls();
+        console.info(`Pinned CIDs:`);
+        console.info(`----+----`);
+        for await (const pin of pins) {
+          console.info(`    | ${pin.cid}`);
+        }
+      },
       clear: () => {
         console.clear();
       },

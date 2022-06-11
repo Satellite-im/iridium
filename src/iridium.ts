@@ -6,7 +6,6 @@ import * as json from 'multiformats/codecs/json';
 import { CID } from 'multiformats/cid';
 import type { IPFS } from 'ipfs-core';
 import type { GeneralJWS } from 'dids';
-import * as dagJose from 'dag-jose';
 import { sha256 } from 'multiformats/hashes/sha2';
 import set from 'lodash.set';
 import get from 'lodash.get';
@@ -279,7 +278,6 @@ export default class Iridium extends Emitter<IridiumMessage> {
    * Listen for direct messages from other peerIds
    */
   async listenForPeerBroadcast(peerId: string) {
-    console.info(`[iridium] listening for broadcasts from ${peerId}`);
     await this.ipfs.pubsub.subscribe(
       `${peerId}:broadcast`,
       async (message: any) => {
@@ -327,6 +325,15 @@ export default class Iridium extends Emitter<IridiumMessage> {
    * Listen for direct messages from other DIDs
    */
   async listenForDirectMessages() {
+    this.ipfs.libp2p.connectionManager.addEventListener(
+      'peer:connect',
+      async (event: any) => {
+        console.info(
+          '[iridium] peer connected',
+          event.detail.remotePeer.toString()
+        );
+      }
+    );
     this.ipfs.libp2p.addEventListener('peer:discovery', async (event: any) => {
       const remotePeerId = event.detail.id.toString();
       if (this._followedPeers.includes(remotePeerId)) {
@@ -338,20 +345,16 @@ export default class Iridium extends Emitter<IridiumMessage> {
             meta: {},
             seen: Date.now(),
           };
-          console.info('followed peer connected', remotePeerId, remotePeerDID);
+          // manually connect to the peer
+          await this.ipfs.swarm.connect(event.detail.id);
         } else {
           this._peers[remotePeerId].seen = Date.now();
         }
       }
     });
-    console.info(
-      '[iridium] listening for direct communications',
-      `${this.peerId}:direct`
-    );
-    await this.ipfs.pubsub.subscribe(
+    const result = await this.ipfs.pubsub.subscribe(
       `${this.peerId}:direct`,
       async (message: any) => {
-        console.info('[iridium] pubsub message received', message);
         const { from, payload } = message as IridiumMessage;
         if (!payload || !from) return;
         const decoded = json.decode(
@@ -386,7 +389,6 @@ export default class Iridium extends Emitter<IridiumMessage> {
         onError: (err: any) => {
           console.error('pubsub error', err);
         },
-        timeout: 3000,
       }
     );
   }
@@ -400,11 +402,9 @@ export default class Iridium extends Emitter<IridiumMessage> {
   send(payload: any, peerIds: string[] | string, options: any = {}) {
     return Promise.all(
       (Array.isArray(peerIds) ? peerIds : [peerIds]).map(async (peerId) => {
-        console.info('[iridium] sending message to', `${peerId}:direct`);
         return this.ipfs.pubsub.publish(
           `${peerId}:direct`,
-          json.encode(payload),
-          { onError: (err: any) => console.error(err), ...options }
+          options.encoded ? payload : json.encode(payload)
         );
       })
     );
@@ -461,6 +461,16 @@ export default class Iridium extends Emitter<IridiumMessage> {
       return false;
     }
     return verify.kid === signer;
+  }
+
+  /**
+   * Store a plaintext payload in the IPFS DAG
+   * @param payload - payload to store
+   * @returns
+   */
+  async store(payload: any) {
+    const hash = await this.ipfs.dag.put(json.encode(payload));
+    return hash;
   }
 
   /**
@@ -547,9 +557,7 @@ export default class Iridium extends Emitter<IridiumMessage> {
       storeCodec: 'dag-jose',
       hashAlg: 'sha2-256',
     });
-    console.info('dag put cid', cid);
     await this.ipfs.pin.add(cid);
-    console.info('dag cid pinned', cid);
     return cid;
   }
 
@@ -585,18 +593,14 @@ export default class Iridium extends Emitter<IridiumMessage> {
     options = {},
     linkOptions = {}
   ): Promise<IridiumDocument> {
-    console.info('[iridium] loading document', cid);
     const doc = await this.load(cid, options);
     try {
-      console.info('[iridium] decrypting document', cid);
       const object = await this.decrypt(doc, options);
       if (object._links) {
-        console.info('[iridium] processing document links', cid);
         await Promise.all(
           Object.keys(object._links).map(async (key) => {
             const cid = object._links[key];
             try {
-              console.info('[iridium] loaded encrypted document link', cid);
               const child = await this.loadEncrypted(cid, linkOptions);
               object[key] = child;
             } catch (e) {
@@ -645,12 +649,10 @@ export default class Iridium extends Emitter<IridiumMessage> {
       timeout: 3000,
       ...options,
     })) {
-      console.info(`resolved ${cidStr}`);
       if (cidStr) {
         const cid = CID.parse(cidStr.substring(6));
         this._ipnsCID = cid;
         try {
-          console.info('loading ipns doc', cid);
           const doc = await this.loadEncrypted(
             cid,
             {
@@ -670,7 +672,6 @@ export default class Iridium extends Emitter<IridiumMessage> {
         }
       }
     }
-    console.info('loaded root document', _root);
     this._ipnsDoc = _root;
     return this._ipnsDoc;
   }

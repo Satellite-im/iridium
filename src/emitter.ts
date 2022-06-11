@@ -1,10 +1,10 @@
 export type EmitterCallback<T> = (event: T) => void;
 
 export class Emitter<T> {
-  store: { [key: string]: any[] };
+  private readonly _store: { [key: string]: any[] };
 
   constructor() {
-    this.store = Object.create(null);
+    this._store = Object.create(null);
   }
 
   on(event: string, cb: EmitterCallback<T>) {
@@ -31,14 +31,14 @@ export class Emitter<T> {
   }
 
   event(named: string) {
-    if (!this.store[named]) {
-      this.store[named] = [];
+    if (!this._store[named]) {
+      this._store[named] = [];
     }
-    return this.store[named];
+    return this._store[named];
   }
 
   size() {
-    return Array.from(Object.values(this.store), (s) => s.length).reduce(
+    return Array.from(Object.values(this._store), (s) => s.length).reduce(
       (a, b) => a + b,
       0
     );

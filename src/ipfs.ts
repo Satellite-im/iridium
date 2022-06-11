@@ -20,7 +20,14 @@ export async function ipfsNodeFromKey(
 export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
   return merge(
     {
-      repo: `${config.repo || 'iridium'}/${config.version || 'v1.0.0'}`,
+      repo: `${config.repo || 'iridium'}/${
+        config.version || 'v0.0.1'
+      }/${peerId.toString()}`,
+      offline: true,
+      silent: true,
+      preload: {
+        enabled: false,
+      },
       config: {
         Discovery: {
           MDNS: {
@@ -38,26 +45,88 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
         },
         Pubsub: {
           Enabled: true,
-          Router: 'floodsub',
         },
         Swarm: {
           DisableRelay: false,
           EnableRelayHop: true,
-          EnableAutoNATService: false,
+          EnableAutoNATService: true,
           EnableAutoRelay: true,
         },
         Datastore: {
-          GCPeriod: '1h',
+          GCPeriod: '10m',
           StorageGCWatermark: 90,
         },
         Router: {
           Enabled: true,
-          Type: 'dht',
+          Type: 'dhtclient',
         },
       },
       init: {
         privateKey: peerId,
         algorithm: 'ed25519',
+      },
+      libp2p: {
+        addresses: {
+          bootstrap: [
+            '/ip4/127.0.0.1/tcp/9090/ws/p2p-websocket-star',
+            '/ip4/127.0.0.1/tcp/15003/ws/p2p/QmepGAJCPEtn92mwznz1GKc2vqY4E3A4yFDBi7riDAr7Et',
+            '/ip4/127.0.0.1/tcp/8000/p2p/QmepGAJCPEtn92mwznz1GKc2vqY4E3A4yFDBi7riDAr7Et',
+          ],
+        },
+        dialer: {
+          maxParallelDials: 150,
+          maxDialsPerPeer: 4,
+          dialTimeout: 5 * 1000,
+        },
+        config: {
+          peerDiscovery: {
+            mdns: {
+              enabled: true,
+            },
+            webRTCStar: {
+              enabled: true,
+            },
+          },
+          pubsub: {
+            enabled: true,
+            emitSelf: false,
+            canRelayMessages: true,
+          },
+          dht: {
+            enabled: true,
+            kBucketSize: 20,
+            randomWalk: {
+              enabled: true,
+              interval: 10e3, // This is set low intentionally, so more peers are discovered quickly. Higher intervals are recommended
+              timeout: 2e3, // End the query quickly since we're running so frequently
+            },
+          },
+          nat: {
+            enabled: true,
+            ttl: 7200,
+            keepAlive: true,
+            pmp: {
+              enabled: false,
+            },
+          },
+          relay: {
+            enabled: true,
+            hop: {
+              enabled: true,
+              active: true,
+            },
+          },
+        },
+        peerId,
+        metrics: {
+          enabled: false,
+        },
+        peerStore: {
+          persistence: false,
+        },
+        connectionManager: {
+          autoDial: false,
+        },
       },
     },
     config.ipfs
