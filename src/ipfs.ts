@@ -1,21 +1,21 @@
-import merge from 'merge';
-import { createFromPrivKey } from '@libp2p/peer-id-factory';
-import { create } from 'ipfs-core';
-import type { IPFS } from 'ipfs-core';
-import { keys } from '@libp2p/crypto';
-import * as dagJose from 'dag-jose';
-import { IridiumConfig } from './iridium';
+import merge from 'merge'
+import { createFromPrivKey } from '@libp2p/peer-id-factory'
+import { create } from 'ipfs-core'
+import type { IPFS } from 'ipfs-core'
+import { keys } from '@libp2p/crypto'
+import * as dagJose from 'dag-jose'
+import { IridiumConfig } from './iridium'
 
 export async function ipfsNodeFromSeed(
   seed: Uint8Array,
-  config: IridiumConfig = {}
+  config: IridiumConfig = {},
 ): Promise<{ ipfs: IPFS; peerId: string }> {
-  const key = await keys.supportedKeys.ed25519.generateKeyPairFromSeed(seed);
-  const peerId = await createFromPrivKey(key);
+  const key = await keys.supportedKeys.ed25519.generateKeyPairFromSeed(seed)
+  const peerId = await createFromPrivKey(key)
   return {
     ipfs: await create(ipfsConfig(peerId, config)),
     peerId: peerId.toString(),
-  };
+  }
 }
 
 export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
@@ -57,6 +57,6 @@ export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
         algorithm: 'ed25519',
       },
     },
-    config.ipfs
-  );
+    config.ipfs,
+  )
 }
