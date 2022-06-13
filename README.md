@@ -4,26 +4,47 @@ Iridium is a loosely defined protocol for peer to peer communication and storage
 
 ## Developing with Iridium
 
-Iridium comes with support for developing with a local `@libp2p/webrtc-star-signalling-server` and `libp2p-relay-server`.
-To enable this support, first run the `bootstrap:init` command:
+### Install Dependencies
+
+```sh
+# install npm dependencies:
+pnpm i
+
+# install libp2p-relay server _globally_:
+volta install libp2p-relay-server
+# or
+pnpm i -g libp2p-relay-server
+
+# install jq
+brew install jq # https://github.com/stedolan/jq for other OS
+```
+
+### Set up your .env
+
+The `bootstrap:init` script will create a peerId to be used for the development relay:
 
 ```sh
 pnpm bootstrap:init
 ```
 
-Then, start the local relay servers with `bootstrap`:
+### Running Local Relay Servers
+
+The relay servers are used in place of public IPFS nodes to deliver messages between peers during local development.
+To start them, run the `bootstrap` script:
 
 ```sh
 pnpm bootstrap
 ```
 
-The relay servers are used in place of public IPFS nodes to deliver messages between peers during local development.
-
-In another tab start the build and watch the source files for changes:
+### Building & Watching for Changes
 
 ```sh
+pnpm build
+# or, to watch for changes:
 pnpm watch
 ```
+
+### Linking the module
 
 Now you can link Iridium in a local project:
 
@@ -39,7 +60,7 @@ pnpm link @satellite-im/iridium --global
 yarn link @satellite-im/iridium
 ```
 
-## Create an Iridium Instance
+## Creating an Iridium Instance
 
 ```js
 const client = await Iridium.fromSeedString('user a seed', {
@@ -65,7 +86,7 @@ const client = await Iridium.fromSeedString('user a seed', {
 });
 ```
 
-## Direct Communication
+## Direct Peer Communication
 
 ```js
 await iridium.send(someOtherDID, {
