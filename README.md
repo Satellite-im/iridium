@@ -2,6 +2,43 @@
 
 Iridium is a loosely defined protocol for peer to peer communication and storage for user application data (profile, friends, messages, files, etc...) leveraging IPFS and dag-jose.
 
+## Developing with Iridium
+
+Iridium comes with support for developing with a local `@libp2p/webrtc-star-signalling-server` and `libp2p-relay-server`.
+To enable this support, first run the `bootstrap:init` command:
+
+```sh
+pnpm bootstrap:init
+```
+
+Then, start the local relay servers with `bootstrap`:
+
+```sh
+pnpm bootstrap
+```
+
+The relay servers are used in place of public IPFS nodes to deliver messages between peers during local development.
+
+In another tab start the build and watch the source files for changes:
+
+```sh
+pnpm watch
+```
+
+Now you can link Iridium in a local project:
+
+```sh
+# from the iridium directory:
+pnpm link . --global
+# OR
+yarn link
+
+# from the other project directory:
+pnpm link @satellite-im/iridium --global
+# OR
+yarn link @satellite-im/iridium
+```
+
 ## Create an Iridium Instance
 
 ```js

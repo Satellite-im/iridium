@@ -8,7 +8,7 @@ src/modules/ipfs-core/
 .pnpm-debug.log
 .DS_Store
 .env
-
+peerid.json
 src/sync*
 dist/sync*
 example/sync*
