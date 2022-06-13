@@ -27,6 +27,7 @@ specifiers:
   dag-jose-utils: ^2.0.0
   did-jwt: ^6.1.2
   dids: ^3.2.0
+  dotenv: ^16.0.1
   esbuild: ^0.14.43
   fast-json-stable-stringify: ^2.1.0
   husky: ^8.0.1
@@ -40,6 +41,7 @@ specifiers:
   minimist: ^1.2.6
   multiformats: ^9.6.3
   p-retry: ^5.1.1
+  prettier: ^2.6.2
   process: ^0.11.10
   rollup: ^2.75.6
   rollup-plugin-esbuild: ^4.9.1
@@ -95,10 +97,12 @@ devDependencies:
   ava: 4.3.0_@ava+typescript@3.0.1
   buffer: 6.0.3
   concurrently: 7.2.1
+  dotenv: 16.0.1
   esbuild: 0.14.43
   husky: 8.0.1
   keys: link:@libp2p/interfaces/keys
   minimist: 1.2.6
+  prettier: 2.6.2
   process: 0.11.10
   rollup: 2.75.6
   rollup-plugin-esbuild: 4.9.1_2uefy6dldbldonrghlgjus4ieu
@@ -2560,6 +2564,11 @@ packages:
       '@leichtgewicht/ip-codec': 2.0.4
     dev: false
 
+  /dotenv/16.0.1:
+    resolution: {integrity: sha512-1K6hR6wtk2FviQ4kEiSjFiH5rpzEVi8WW0x96aztHVMhEspNpc4DVOUTEHtEva5VThQ8IaBX1Pe4gSzpVVUsKQ==}
+    engines: {node: '>=12'}
+    dev: true
+
   /eastasianwidth/0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
     dev: true
@@ -4963,6 +4972,12 @@ packages:
       lilconfig: 2.0.5
       ts-node: 10.8.1_f5eqjuxkorpjvs4z7mviievvou
       yaml: 1.10.2
+    dev: true
+
+  /prettier/2.6.2:
+    resolution: {integrity: sha512-PkUpF+qoXTqhOeWL9fu7As8LXsIUZ1WYaJiY/a7McAQzxjk82OF0tibkFXVCDImZtWxbvojFjerkiLb0/q8mew==}
+    engines: {node: '>=10.13.0'}
+    hasBin: true
     dev: true
 
   /pretty-ms/7.0.1:

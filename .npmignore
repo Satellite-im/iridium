@@ -1,0 +1,6 @@
+src/modules/
+dist/modules/
+node_modules/
+test/
+example/
+coverage/

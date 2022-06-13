@@ -14,6 +14,7 @@ import { ipfsNodeFromKey } from './ipfs';
 import type { PeerId } from 'ipfs-core/ipns';
 import Emitter from './emitter';
 import { keys } from '@libp2p/crypto';
+import { Await } from 'multiformats/hashes/hasher';
 
 const resolver = KeyDIDResolver.getResolver();
 const textEncoder = new TextEncoder();
@@ -166,6 +167,15 @@ export default class Iridium extends Emitter<IridiumMessage> {
     }
 
     return this.didFromPublicKey(pid.publicKey.slice(4));
+  }
+
+  static sha256(data: any): Await<Uint8Array> {
+    const encoded = json.encode(data);
+    return sha256.encode(encoded);
+  }
+
+  static hash(data: any): string {
+    return sha256.encode(json.encode(data)).toString();
   }
 
   async start(
@@ -352,9 +362,12 @@ export default class Iridium extends Emitter<IridiumMessage> {
         }
       }
     });
-    const result = await this.ipfs.pubsub.subscribe(
+
+    // receive direct messages from other users and automatically decrypt or verify signatures where applicable
+    await this.ipfs.pubsub.subscribe(
       `${this.peerId}:direct`,
       async (message: any) => {
+        console.info('[iridium] received direct message', message);
         const { from, payload } = message as IridiumMessage;
         if (!payload || !from) return;
         const decoded = json.decode(
@@ -691,9 +704,11 @@ export default class Iridium extends Emitter<IridiumMessage> {
     if (path !== '/') {
       set(next, convertPath(path), object);
     }
-    const cid = await this.storeEncrypted(next, [this.did.id], {
-      ...options,
+
+    const { dids, ...config } = options;
+    const cid = await this.storeEncrypted(next, dids || [this.did.id], {
       pin: true,
+      ...config,
     });
     await this.ipfs.name
       .publish(`/ipfs/${cid}`, {

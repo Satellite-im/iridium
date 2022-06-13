@@ -1,5 +1,5 @@
 export { default as Iridium, default } from './iridium';
-export { default as Emitter } from './emitter';
+export { default as Emitter, type EmitterCallback } from './emitter';
 
 export type {
   IridiumConfig,

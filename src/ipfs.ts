@@ -18,10 +18,10 @@ export async function ipfsNodeFromKey(
 }
 
 export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
-  return merge(
+  const conf = merge(
     {
       repo: `${config.repo || 'iridium'}/${
-        config.version || 'v0.0.1'
+        config.version || 'v0.0.2'
       }/${peerId.toString()}`,
       offline: true,
       silent: true,
@@ -66,13 +66,7 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
         algorithm: 'ed25519',
       },
       libp2p: {
-        addresses: {
-          bootstrap: [
-            '/ip4/127.0.0.1/tcp/9090/ws/p2p-websocket-star',
-            '/ip4/127.0.0.1/tcp/15003/ws/p2p/QmepGAJCPEtn92mwznz1GKc2vqY4E3A4yFDBi7riDAr7Et',
-            '/ip4/127.0.0.1/tcp/8000/p2p/QmepGAJCPEtn92mwznz1GKc2vqY4E3A4yFDBi7riDAr7Et',
-          ],
-        },
+        addresses: {},
         dialer: {
           maxParallelDials: 150,
           maxDialsPerPeer: 4,
@@ -131,4 +125,17 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
     },
     config.ipfs
   );
+
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.IRIDIUM_LOCAL_RELAY
+  ) {
+    conf.libp2p.config.addresses.bootstrap = [
+      '/ip4/127.0.0.1/tcp/9090/ws/p2p-websocket-star',
+      `/ip4/127.0.0.1/tcp/15003/ws/p2p/${process.env.IRIDIUM_LOCAL_RELAY}`,
+      `/ip4/127.0.0.1/tcp/8000/p2p/${process.env.IRIDIUM_LOCAL_RELAY}`,
+    ];
+  }
+
+  return conf;
 }
