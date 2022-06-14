@@ -1,7 +1,11 @@
 import dotenv from 'dotenv';
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-dotenv.config();
+dotenv.config({
+  path: '../../.env',
+});
+
+console.info('relay peer', process.env.IRIDIUM_LOCAL_RELAY);
 
 const rl = readline.createInterface({ input, output });
 
@@ -23,6 +27,15 @@ const client = await Iridium.fromSeedString('user a seed', {
 
 const terminal = new IridiumTerminal(client);
 await client.start();
+console.info('sending message');
+await client.ipfs.repo.gc();
+// await client.send(
+//   'testing',
+//   '12D3KooWJANMEJ97LJzLFH6N5Wgz63v8Qrv5rvyTm1iHu7asPasp'
+// );
+// console.info('exiting');
+// await client.stop();
+// process.exit(0);
 await terminal.exec('whoami');
 await terminal.exec('pins');
 
