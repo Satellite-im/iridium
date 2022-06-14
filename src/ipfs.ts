@@ -1,10 +1,13 @@
 import merge from 'merge';
 import { createFromPrivKey } from '@libp2p/peer-id-factory';
 import type { PrivateKey } from '@libp2p/interfaces/src/keys';
+import { DelegatedContentRouting } from '@libp2p/delegated-content-routing';
+import { DelegatedPeerRouting } from '@libp2p/delegated-peer-routing';
 import { create } from 'ipfs-core';
 import type { IPFS } from 'ipfs-core';
 import type { IridiumConfig } from './iridium';
 import type { PeerId } from 'ipfs-core/ipns';
+import * as ipfsHttpClient from 'ipfs-http-client';
 
 export async function ipfsNodeFromKey(
   key: PrivateKey,
@@ -18,52 +21,100 @@ export async function ipfsNodeFromKey(
 }
 
 export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
-  const conf = merge(
+  const contentRouting = new DelegatedContentRouting(
+    ipfsHttpClient.create({
+      protocol: 'https',
+      port: 443,
+      host: 'satellite.infura-ipfs.io',
+    })
+  );
+
+  const peerRouting = new DelegatedPeerRouting(
+    ipfsHttpClient.create({
+      protocol: 'https',
+      port: 443,
+      host: 'satellite.infura-ipfs.io',
+    })
+  );
+
+  const conf = merge.recursive(
+    true,
     {
-      repo: `${config.repo || 'iridium'}/${
-        config.version || 'v0.0.2'
-      }/${peerId.toString()}`,
+      repo: `iridium-${peerId}/${Math.random()}`,
       offline: true,
       silent: true,
       preload: {
-        enabled: false,
+        enabled: true,
       },
       config: {
+        Addresses: {
+          API: '/dns4/ipfs.infura.io/tcp/5001/https',
+          Gateway: ['/dns4/trialect.infura-ipfs.io/tcp/443/https'],
+        },
         Discovery: {
           MDNS: {
             Enabled: true,
-            Interval: 1,
+            Interval: 0.1,
           },
           webRTCStar: {
             Enabled: true,
           },
         },
         Experimental: {
-          ShardingEnabled: true,
-          FilestoreEnabled: true,
-          Libp2pStreamMounting: true,
+          ShardingEnabled: false,
+          FilestoreEnabled: false,
+          Libp2pStreamMounting: false,
+        },
+        Ipns: {
+          RecordLifeTime: '90d',
+          RepublishPeriod: '24h',
+          ResolveCacheSize: 128,
+          UsePubsub: true,
         },
         Pubsub: {
           Enabled: true,
+          Router: 'floodsub',
+        },
+        Mounts: {
+          FuseAllowOther: false,
+          IPFS: '/ipfs',
+          IPNS: '/ipns',
+        },
+        Reprovider: {
+          Interval: '12h',
+          Strategy: 'all',
         },
         Swarm: {
+          AddrFilters: null,
+          ConnMgr: {
+            GracePeriod: '60s',
+            HighWater: 200,
+            LowWater: 20,
+            Type: 'basic',
+          },
+          DisableBandwidthMetrics: false,
+          DisableNatPortMap: false,
           DisableRelay: false,
           EnableRelayHop: true,
           EnableAutoNATService: true,
           EnableAutoRelay: true,
         },
         Datastore: {
-          GCPeriod: '10m',
+          BloomFilterSize: 0,
+          GCPeriod: '1h',
+          HashOnRead: false,
           StorageGCWatermark: 90,
+          StorageMax: '10GB',
         },
         Router: {
           Enabled: true,
-          Type: 'dhtclient',
+          Type: 'dht',
         },
       },
       init: {
-        privateKey: peerId,
         algorithm: 'ed25519',
+        // profiles: ['test'],
+        emptyRepo: true,
       },
       libp2p: {
         addresses: {},
@@ -89,11 +140,6 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
           dht: {
             enabled: true,
             kBucketSize: 20,
-            randomWalk: {
-              enabled: true,
-              interval: 10e3, // This is set low intentionally, so more peers are discovered quickly. Higher intervals are recommended
-              timeout: 2e3, // End the query quickly since we're running so frequently
-            },
           },
           nat: {
             enabled: true,
@@ -110,8 +156,19 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
               active: true,
             },
           },
+          peerRouting: {
+            // Peer routing configuration
+            refreshManager: {
+              // Refresh known and connected closest peers
+              enabled: true, // Should find the closest peers.
+              interval: 6e5, // Interval for getting the new for closest peers of 10min
+              bootDelay: 10e3, // Delay for the initial query for closest peers
+            },
+          },
         },
-        peerId,
+
+        contentRouting: [contentRouting],
+        peerRouting: [peerRouting],
         metrics: {
           enabled: false,
         },
@@ -126,15 +183,16 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
     config.ipfs
   );
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    process.env.IRIDIUM_LOCAL_RELAY
-  ) {
-    conf.libp2p.config.addresses.bootstrap = [
+  conf.config.peerId = peerId;
+  conf.init.privateKey = peerId;
+
+  if (process.env.IRIDIUM_LOCAL_RELAY) {
+    conf.libp2p.addresses.bootstrap = [
       '/ip4/127.0.0.1/tcp/9090/ws/p2p-websocket-star',
       `/ip4/127.0.0.1/tcp/15003/ws/p2p/${process.env.IRIDIUM_LOCAL_RELAY}`,
       `/ip4/127.0.0.1/tcp/8000/p2p/${process.env.IRIDIUM_LOCAL_RELAY}`,
     ];
+    console.info(`Using local relay peer: ${process.env.IRIDIUM_LOCAL_RELAY}`);
   }
 
   return conf;

@@ -1,0 +1,6 @@
+{
+  "verbose": true,
+  "watch": true,
+  "ignore": ["node_modules"],
+  "include": ["dist/**/*"]
+}
