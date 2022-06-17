@@ -4,7 +4,6 @@ import type { PrivateKey } from '@libp2p/interfaces/src/keys';
 import { DelegatedContentRouting } from '@libp2p/delegated-content-routing';
 import { DelegatedPeerRouting } from '@libp2p/delegated-peer-routing';
 import { create } from 'ipfs-core';
-import type { IPFS } from 'ipfs-core';
 import type { IridiumConfig } from './iridium';
 import type { PeerId } from 'ipfs-core/ipns';
 import * as ipfsHttpClient from 'ipfs-http-client';
@@ -12,11 +11,11 @@ import * as ipfsHttpClient from 'ipfs-http-client';
 export async function ipfsNodeFromKey(
   key: PrivateKey,
   config: IridiumConfig = {}
-): Promise<{ ipfs: IPFS; peerId: string }> {
+): Promise<{ ipfs: any; peerId: PeerId }> {
   const peerId = await createFromPrivKey(key);
   return {
     ipfs: await create(ipfsConfig(peerId, config)),
-    peerId: peerId.toString(),
+    peerId,
   };
 }
 
@@ -40,16 +39,17 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
   const conf = merge.recursive(
     true,
     {
-      repo: `iridium-${peerId}/${Math.random()}`,
+      repo: `iridium/${Math.random()}/${peerId}`,
       offline: true,
       silent: true,
       preload: {
-        enabled: true,
+        enabled: false,
       },
       config: {
         Addresses: {
           API: '/dns4/ipfs.infura.io/tcp/5001/https',
-          Gateway: ['/dns4/trialect.infura-ipfs.io/tcp/443/https'],
+          Gateway: '/dns4/satellite.infura-ipfs.io/tcp/443/https',
+          RemotePinning: ['/dns4/satellite.infura-ipfs.io/tcp/443/https'],
         },
         Discovery: {
           MDNS: {
@@ -68,12 +68,12 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
         Ipns: {
           RecordLifeTime: '90d',
           RepublishPeriod: '24h',
-          ResolveCacheSize: 128,
+          ResolveCacheSize: 256,
           UsePubsub: true,
         },
         Pubsub: {
           Enabled: true,
-          Router: 'floodsub',
+          Router: 'gossipsub',
         },
         Mounts: {
           FuseAllowOther: false,
@@ -81,8 +81,8 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
           IPNS: '/ipns',
         },
         Reprovider: {
-          Interval: '12h',
-          Strategy: 'all',
+          Interval: '6h',
+          Strategy: 'pinned',
         },
         Swarm: {
           AddrFilters: null,
@@ -92,7 +92,7 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
             LowWater: 20,
             Type: 'basic',
           },
-          DisableBandwidthMetrics: false,
+          DisableBandwidthMetrics: true,
           DisableNatPortMap: false,
           DisableRelay: false,
           EnableRelayHop: true,
@@ -102,7 +102,7 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
         Datastore: {
           BloomFilterSize: 0,
           GCPeriod: '1h',
-          HashOnRead: false,
+          HashOnRead: true,
           StorageGCWatermark: 90,
           StorageMax: '10GB',
         },
@@ -113,15 +113,17 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
       },
       init: {
         algorithm: 'ed25519',
-        // profiles: ['test'],
+        profiles: ['default-power'],
+        privateKey: peerId,
+        allowNew: true,
         emptyRepo: true,
       },
       libp2p: {
         addresses: {},
         dialer: {
-          maxParallelDials: 150,
+          maxParallelDials: 20,
           maxDialsPerPeer: 4,
-          dialTimeout: 5 * 1000,
+          dialTimeout: 60000,
         },
         config: {
           peerDiscovery: {
@@ -143,11 +145,11 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
           },
           nat: {
             enabled: true,
-            ttl: 7200,
-            keepAlive: true,
-            pmp: {
-              enabled: false,
-            },
+            // ttl: 7200,
+            // keepAlive: true,
+            // pmp: {
+            // enabled: false,
+            // },
           },
           relay: {
             enabled: true,
@@ -166,7 +168,6 @@ export function ipfsConfig(peerId: PeerId, config: IridiumConfig = {}) {
             },
           },
         },
-
         contentRouting: [contentRouting],
         peerRouting: [peerRouting],
         metrics: {

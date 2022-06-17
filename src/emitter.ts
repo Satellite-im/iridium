@@ -7,11 +7,11 @@ export class Emitter<T> {
     this._store = Object.create(null);
   }
 
-  on(event: string, cb: EmitterCallback<T>) {
+  on<H = T>(event: string, cb: EmitterCallback<H>) {
     return this.event(event).push(cb);
   }
 
-  off(event: string, cb: EmitterCallback<T> | false = false) {
+  off<H = T>(event: string, cb: EmitterCallback<H> | false = false) {
     const stack = this.event(event);
     if (cb === false) {
       return stack.splice(0, stack.length);
@@ -20,7 +20,7 @@ export class Emitter<T> {
     return stack.splice(stack.indexOf(cb) >>> 0, 1);
   }
 
-  emit(event: string, data: T, isAsync = false) {
+  emit<H = T>(event: string, data: H, isAsync = false) {
     const result = [
       ...this.event(event).map((cb) => cb(data)),
       ...this.event('*').map((cb) =>
