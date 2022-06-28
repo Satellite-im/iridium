@@ -49,7 +49,7 @@ export async function ipfsConfig(
   const conf = Object.assign(
     {},
     {
-      repo: `iridium/${peerId.toString()}/${Date.now()}`,
+      repo: 'iridium-' + Math.random(),
       repoAutoMigrate: false,
       relay: { enabled: true, hop: { enabled: true, active: true } },
       EXPERIMENTAL: { ipnsPubsub: true, sharding: true },

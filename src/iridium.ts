@@ -518,7 +518,10 @@ export default class Iridium extends Emitter<
         const channel = `sync/${did}`;
         await this.ipfs.pubsub.subscribe(
           channel,
-          this.onSyncNodeMessage.bind(this)
+          this.onSyncNodeMessage.bind(this),
+          {
+            timeout: 100,
+          }
         );
         await this.waitForTopicPeer(channel, remotePeerId);
         const payload = { type: 'init', at: Date.now() };
@@ -751,6 +754,7 @@ export default class Iridium extends Emitter<
         config.encrypt?.options
       );
       const cid = await this.ipfs.dag.put(jwe, putOptions);
+
       this.logger.debug('iridium/store', 'stored encrypted payload', {
         jwe,
         cid,
