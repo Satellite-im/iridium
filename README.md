@@ -89,21 +89,15 @@ const client = await Iridium.fromSeedString('user a seed', {
 ## Direct Peer Communication
 
 ```js
-await iridium.send(someOtherDID, {
-  type: 'friend:request',
-  displayName,
-  profilePicture,
-});
-
-await iridium.sendSigned(someOtherDID, {
-  type: 'signed:message',
-  data,
-});
-
-await iridium.sendEncrypted(someOtherDID, {
-  type: 'secret:message',
-  data,
-});
+await iridium.send(
+  someOtherDID,
+  {
+    type: 'friend:request',
+    displayName,
+    profilePicture,
+  },
+  { encrypt: true }
+);
 
 iridium.on('message', ({ from, payload }) => {
   const { type } = payload;
@@ -156,14 +150,7 @@ await iridium.set('/profile/friends/0', {
 ## Managing Other Documents
 
 ```js
-// plaintext
-const cid = await iridium.store(document);
-const doc = await iridium.load(cid);
-
-// signed (JWS)
-const cid = await iridium.storeSigned(document, arrayOfTargetDIDs);
-const doc = await iridium.loadSigned(cid); // throws if signature invalid
-
-const cid = await iridium.storeEncrypted(document, arrayOfTargetDIDs);
-const doc = await iridiumloadEncrypted(document); // throws if signature/encryption invalid
+// config can include `encrypt`, `sign`, `dag` options
+const cid = await iridium.store(document, arrayOfTargetDIDs, config);
+const doc = await iridium.load(cid); // throws if signature invalid
 ```

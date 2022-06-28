@@ -52,10 +52,11 @@ export async function ipfsConfig(
       repo: `iridium/${peerId.toString()}/${Date.now()}`,
       repoAutoMigrate: false,
       relay: { enabled: true, hop: { enabled: true, active: true } },
+      EXPERIMENTAL: { ipnsPubsub: true, sharding: true },
       offline: true,
       silent: false,
       preload: {
-        enabled: false,
+        enabled: true,
       },
       config: {
         Addresses: {
@@ -81,7 +82,7 @@ export async function ipfsConfig(
         enabled: false,
       },
       peerStore: {
-        persistence: false,
+        persistence: true,
       },
       connectionManager: {
         autoDial: true,
