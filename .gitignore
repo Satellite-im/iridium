@@ -9,7 +9,4 @@ src/modules/ipfs-core/
 .DS_Store
 .env
 peerid.json
-src/sync*
-dist/sync*
-example/sync*
-src/sync*
+example/**/iridium*/

@@ -39,7 +39,6 @@ specifiers:
   ipfs-repo: ^14.0.1
   key-did-provider-ed25519: ^2.0.0
   key-did-resolver: ^2.0.4
-  keys: link:@libp2p/interfaces/keys
   libp2p: ^0.37.3
   lodash.get: ^4.4.2
   lodash.set: ^4.3.2
@@ -114,7 +113,6 @@ devDependencies:
   esbuild: 0.14.47
   husky: 8.0.1
   ipfs-repo: 14.0.1
-  keys: link:@libp2p/interfaces/keys
   minimist: 1.2.6
   peer-id: 0.16.0
   peer-id-bin: 0.0.2
