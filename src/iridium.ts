@@ -1,4 +1,4 @@
-import { DagJWS, DecryptJWEOptions, DID } from 'dids';
+import { DecryptJWEOptions, DID } from 'dids';
 import { IridiumEd25519Provider, encodeDID } from './did-provider';
 import KeyDIDResolver from 'key-did-resolver';
 import { peerIdFromString } from '@libp2p/peer-id';
@@ -16,14 +16,12 @@ import Emitter from './emitter';
 import { keys } from '@libp2p/crypto';
 import { Await } from 'multiformats/hashes/hasher';
 import { getPublicKey, getSharedSecret } from '@noble/ed25519';
-import { EventHandler } from '@libp2p/interfaces/dist/src/events';
-import { Message } from '@libp2p/interfaces/dist/src/pubsub/index';
+import { multiaddr } from 'ipfs-http-client';
 import {
-  IridiumConfig,
-  IridiumDagOptions,
+  IridiumSeedConfig,
   IridiumDocument,
-  IridiumGetOptions,
   IridiumLoadOptions,
+  IridiumLogger,
   IridiumMessage,
   IridiumPayload,
   IridiumPeer,
@@ -32,7 +30,10 @@ import {
   IridiumSendOptions,
   IridiumSetOptions,
   IridiumWriteOptions,
+  IridiumGetOptions,
+  IridiumSyncNodeConfig,
 } from './types';
+import { createFromPubKey } from '@libp2p/peer-id-factory';
 
 const resolver = KeyDIDResolver.getResolver();
 const textEncoder = new TextEncoder();
@@ -40,22 +41,30 @@ const textEncoder = new TextEncoder();
 const DEFAULT_REQUEST_OPTIONS = { timeout: 3000 };
 const DEFAULT_RESOLVE_OPTIONS = {
   ...DEFAULT_REQUEST_OPTIONS,
-  nocache: false,
-  recursive: true,
+  stream: false,
 };
-const DEFAULT_LOAD_OPTIONS = {
+const DEFAULT_DAG_GET_OPTIONS = {
   ...DEFAULT_REQUEST_OPTIONS,
   localResolve: true,
-  depth: 0,
+};
+const DEFAULT_DAG_PUT_OPTIONS = {
+  pin: true,
+  storeCodec: 'dag-jose',
+  hashAlg: 'sha2-256',
+};
+const DEFAULT_LOAD_OPTIONS = {
+  depth: 2,
+  dag: DEFAULT_DAG_GET_OPTIONS,
+  decrypt: true,
 };
 const DEFAULT_GET_OPTIONS = {
   load: DEFAULT_LOAD_OPTIONS,
   resolve: DEFAULT_RESOLVE_OPTIONS,
 };
-const DEFAULT_PUBLISH_OPTIONS = {
+const DEFAULT_IPNS_PUBLISH_OPTIONS = {
   ...DEFAULT_REQUEST_OPTIONS,
   resolve: false,
-  allowOffline: true,
+  key: 'self',
 };
 
 export default class Iridium extends Emitter<
@@ -65,16 +74,34 @@ export default class Iridium extends Emitter<
   private _cache?: { [key: string]: any }; // the active root IPNS document
   private _timers: { [key: string]: any } = {};
   private _peers: { [key: string]: IridiumPeer } = {};
+  private _dialing: string[] = [];
   private _followedPeers: string[] = [];
+  private _syncNodes: IridiumSyncNodeConfig[] = [];
+
+  private readonly _ipfs: IPFS;
+  private readonly _peerId: PeerId;
+  private readonly _did: DID;
+
+  private readonly logger: IridiumLogger;
 
   public listenersReady = false;
 
-  constructor(
-    private readonly _ipfs: IPFS,
-    private readonly _peerId: PeerId,
-    private readonly _did: DID
-  ) {
+  constructor({
+    ipfs,
+    peerId,
+    did,
+    logger = console,
+  }: {
+    ipfs: IPFS;
+    peerId: PeerId;
+    did: DID;
+    logger: IridiumLogger;
+  }) {
     super();
+    this._ipfs = ipfs;
+    this._peerId = peerId;
+    this._did = did;
+    this.logger = logger || console;
   }
 
   /**
@@ -89,11 +116,8 @@ export default class Iridium extends Emitter<
       config = {},
       ipfs = undefined,
       peerId = undefined,
-    }: {
-      config?: IridiumConfig;
-      ipfs?: any;
-      peerId?: PeerId;
-    } = {}
+      logger = console,
+    }: IridiumSeedConfig = {}
   ): Promise<Iridium> {
     const key = await keys.supportedKeys.ed25519.generateKeyPairFromSeed(seed);
     const provider = new IridiumEd25519Provider(
@@ -115,13 +139,22 @@ export default class Iridium extends Emitter<
       ipfs = init.ipfs;
       peerId = init.peerId;
     }
+    if (!ipfs) {
+      throw new Error('IPFS node not provided');
+    }
     if (!peerId) {
       throw new Error('peerId is required');
     }
 
-    const client = new Iridium(ipfs, peerId, did);
+    const client = new Iridium({ ipfs, peerId, did, logger });
     if (config.followedPeers) {
+      logger.info('iridium/init', 'followed peers', config.syncNodes);
       client.followPeers(config.followedPeers);
+    }
+
+    if (config.syncNodes) {
+      logger.info('iridium/init', 'sync nodes', config.syncNodes);
+      client.addSyncNodes(config.syncNodes);
     }
 
     return client;
@@ -139,11 +172,7 @@ export default class Iridium extends Emitter<
       config = {},
       ipfs = undefined,
       peerId = undefined,
-    }: {
-      config?: IridiumConfig;
-      ipfs?: IPFS;
-      peerId?: PeerId;
-    } = {}
+    }: IridiumSeedConfig = {}
   ): Promise<Iridium> {
     const seedBytes = await sha256.encode(textEncoder.encode(seed));
     return Iridium.fromSeed(seedBytes, { config, ipfs, peerId });
@@ -154,7 +183,7 @@ export default class Iridium extends Emitter<
    * @param config
    * @returns
    */
-  static didFromPublicKey(publicKey: Uint8Array) {
+  static publicKeyToDID(publicKey: Uint8Array) {
     return encodeDID(publicKey);
   }
 
@@ -162,13 +191,26 @@ export default class Iridium extends Emitter<
    * Create a DID from a peerId string
    * @param peerId - peerId to create DID from
    */
-  static didFromPeerId(peerId: PeerId | string): string {
+  static peerIdToDID(peerId: PeerId | string): string {
     const pid = typeof peerId === 'string' ? peerIdFromString(peerId) : peerId;
     if (!pid || !pid.publicKey) {
       throw new Error('invalid peerId');
     }
 
-    return this.didFromPublicKey(pid.publicKey.slice(4));
+    return this.publicKeyToDID(pid.publicKey.slice(4));
+  }
+
+  /**
+   * Create a PeerId from a DID
+   * @param did - DID to create PeerId from
+   */
+  static DIDToPeerId(did: string): Promise<PeerId> {
+    const multibase = did.substring('did:key:'.length);
+    const publicKeyBytes = base58btc.decode(multibase);
+    const publicKey = keys.supportedKeys.ed25519.unmarshalEd25519PublicKey(
+      publicKeyBytes.slice(2)
+    );
+    return createFromPubKey(publicKey);
   }
 
   static sha256(data: any): Await<Uint8Array> {
@@ -181,7 +223,6 @@ export default class Iridium extends Emitter<
   }
 
   async start() {
-    this.ipfs.pubsub.setMaxListeners?.(1024);
     await this.initializeListeners();
 
     // if node, stop on sigint
@@ -192,10 +233,24 @@ export default class Iridium extends Emitter<
     }
     if (typeof window !== 'undefined') {
       // if browser, stop on unload
-      window?.addEventListener('unload', async () => {
+      window.onbeforeunload = async () => {
         await this.stop();
-      });
+      };
     }
+
+    const addresses = await this.ipfs.swarm.localAddrs();
+    this.logger.info('iridium/start', 'started', {
+      did: this.id,
+      peerId: this.peerId,
+      addresses: addresses.map((a) => a.toString()),
+    });
+
+    const pins = await this.ipfs.pin.ls();
+    const pinned = [];
+    for await (const pin of pins) {
+      pinned.push(pin.cid);
+    }
+    this.logger.info('iridium/start', 'pinned', { pinned });
 
     return this.emit('ready', {});
   }
@@ -207,17 +262,28 @@ export default class Iridium extends Emitter<
   async stop() {
     const channels = await this.ipfs.pubsub.ls();
     for (const channel of channels) {
-      await this.ipfs.pubsub.unsubscribe(channel, undefined, {
-        timeout: 0,
+      this.logger.info('iridium/stop', 'unsubscribing from channel', {
+        channel,
       });
+      await this.ipfs.pubsub.unsubscribe(channel);
     }
     Object.values(this._timers).forEach((timer) => {
       clearInterval(timer);
       clearTimeout(timer);
     });
     this._peers = {};
-    await this.ipfs.repo.gc();
+    // await this.ipfs.repo.gc();
     await this.ipfs.stop();
+  }
+
+  async attemptPeerConnection(peerId: string) {}
+
+  hasPeer(peerId: string) {
+    return this._peers[peerId] !== undefined;
+  }
+
+  getPeer(peerId: string) {
+    return this._peers[peerId];
   }
 
   /**
@@ -248,6 +314,13 @@ export default class Iridium extends Emitter<
     return this._peerId.toString();
   }
 
+  get knownPeerIds(): string[] {
+    return [
+      ...this._followedPeers,
+      ...this._syncNodes.map((node) => node.peerId),
+    ];
+  }
+
   /**
    * Listen for broadcast messages from from the given peer Id
    * @param peerId - peerId to follow
@@ -257,6 +330,33 @@ export default class Iridium extends Emitter<
       return;
     }
     this._followedPeers.push(peerId);
+  }
+
+  async addSyncNode(node: IridiumSyncNodeConfig) {
+    if (this._syncNodes.includes(node)) {
+      return;
+    }
+
+    this._syncNodes.push(node);
+  }
+
+  async connectToSyncNode(node: IridiumSyncNodeConfig) {
+    if (!node.multiaddr) {
+      this.logger.warn('iridium/connect', 'no multiaddr for sync node', node);
+      return;
+    }
+
+    if (this._dialing.includes(node.peerId)) {
+      this.logger.warn('iridium/connect', 'already dialing', node);
+      return;
+    }
+
+    this._dialing.push(node.peerId);
+    this.logger.warn('iridium/connect', 'dialing sync node', node);
+    await this.ipfs.swarm
+      .connect(new multiaddr(node.multiaddr))
+      .catch(() => {});
+    this._dialing = this._dialing.filter((id) => id !== node.peerId);
   }
 
   /**
@@ -277,6 +377,10 @@ export default class Iridium extends Emitter<
     }
   }
 
+  async removeSyncNode(peerId: string) {
+    this._syncNodes = this._syncNodes.filter((node) => node.peerId !== peerId);
+  }
+
   /**
    * Listen for broadcast messages from from the given peer Ids
    * @param peerIds - peerIds to follow
@@ -284,6 +388,14 @@ export default class Iridium extends Emitter<
    */
   followPeers(peerIds: string[]) {
     return Promise.all(peerIds.map((peerId) => this.followPeer(peerId)));
+  }
+
+  addSyncNodes(nodes: IridiumSyncNodeConfig[]) {
+    return Promise.all(
+      nodes.map((node) => {
+        this.addSyncNode(node);
+      })
+    );
   }
 
   /**
@@ -305,9 +417,12 @@ export default class Iridium extends Emitter<
     // find out who's already connected (if applicable)
     const peers = await this.ipfs.swarm.peers();
     for (const peer of peers
-      .filter((p) => this._followedPeers.includes(p.peer.toString()))
+      .filter((p) => this.knownPeerIds.includes(p.peer.toString()))
       .map((p) => p.peer)) {
-      console.info(`found pre-connected peer ${peer.toString()}`);
+      this.logger.info(
+        'iridium/listeners',
+        `found pre-connected peer ${peer.toString()}`
+      );
       await this.onPeerConnect({ detail: { remotePeer: peer } });
     }
 
@@ -321,71 +436,139 @@ export default class Iridium extends Emitter<
       async (event: any) => {
         const peerId = event.detail.remotePeer.toString();
         if (this._peers[peerId]) {
-          console.info(`[iridium] peer disconnected, waiting 10s: ${peerId}`);
+          this.logger.info(
+            'iridium/listeners',
+            `peer disconnected, waiting 10s: ${peerId}`
+          );
           let disconnectTime = Date.now();
           setTimeout(async () => {
-            console.info(`[iridium] peer removed after timeout: ${peerId}`);
             if (
               !this._peers[peerId] ||
               this._peers[peerId].seen >= disconnectTime
             )
               return;
+            this.logger.info('iridium/listeners', `peer timed out: ${peerId}`);
             await this.ipfs.pubsub.unsubscribe(
               this._peers[peerId].channel,
               undefined
             );
             delete this._peers[peerId];
-          }, 10000);
+          }, 30000);
         }
       }
     );
 
     this.ipfs.libp2p.addEventListener('peer:discovery', async (event: any) => {
-      if (this._followedPeers.includes(event.detail.id.toString())) {
+      const remotePeerId = event.detail.id.toString();
+      if (this.knownPeerIds.includes(remotePeerId)) {
         // manually connect to the peer
         await this.ipfs.swarm.connect(event.detail.id);
       }
+      this.emit('peer:discovery', {
+        peerId: remotePeerId,
+      });
     });
+
+    // attempt to connect to sync nodes on an interval
+    // const dialSyncNodes = async () => {
+    //   for (const node of this._syncNodes) {
+    //     if (this._peers[node.peerId] || this._dialing.includes(node.peerId)) {
+    //       return;
+    //     }
+    //     this.logger.debug(
+    //       'iridium/timers',
+    //       `connecting to sync node "${node.label}"`
+    //     );
+    //     await this.connectToSyncNode(node);
+    //   }
+    // };
+    // if (this._timers.syncNodes == undefined) {
+    //   this._timers.syncNodes = setInterval(dialSyncNodes, 30000);
+    // }
+    // await dialSyncNodes();
 
     this.listenersReady = true;
   }
 
   async onPeerConnect(event: any) {
     const remotePeerId = event.detail.remotePeer.toString();
+    this.logger.debug(
+      'iridium/onPeerConnect',
+      `remote peer connected: ${remotePeerId}`
+    );
+    this._dialing = this._dialing.filter((id) => id !== remotePeerId);
     if (this._peers[remotePeerId]) {
+      this.logger.debug(
+        'iridium/onPeerConnect',
+        `remote peer already exists: ${remotePeerId}`
+      );
       return;
     }
-    if (this._followedPeers.includes(remotePeerId)) {
-      console.info('[iridium] peer connected', remotePeerId);
-      const remotePeerDID = Iridium.didFromPeerId(event.detail.remotePeer);
-      if (!this._peerId.privateKey) {
-        throw new Error('no private key available');
+    if (this.knownPeerIds.includes(remotePeerId)) {
+      const isSyncNode = this._syncNodes
+        .map((n) => n.peerId)
+        .includes(remotePeerId);
+      const did = Iridium.peerIdToDID(event.detail.remotePeer);
+
+      if (isSyncNode) {
+        this.logger.info(
+          'iridium/onPeerConnect',
+          `sync node connected: ${did}, broadcasting presence`
+        );
+        const channel = `sync/${did}`;
+        await this.ipfs.pubsub.subscribe(
+          channel,
+          this.onSyncNodeMessage.bind(this)
+        );
+        await this.waitForTopicPeer(channel, remotePeerId);
+        const payload = { type: 'init', at: Date.now() };
+        await this.broadcast(channel, payload, { sign: true });
+        this.emit('sync:connect', {
+          peerId: remotePeerId,
+          did,
+        });
       }
 
+      this.logger.info(
+        'iridium/onPeerConnect',
+        `connected to ${remotePeerId}`,
+        { isSyncNode, did }
+      );
+
+      if (!this._peerId.privateKey) {
+        throw new Error('no local private key available for secure connection');
+      }
       const sharedSecret = await getSharedSecret(
         this._peerId.privateKey.slice(4, 36),
         event.detail.remotePeer.publicKey.slice(4, 36)
       );
       const publicKey = await getPublicKey(sharedSecret);
-      const channel = `/iridium/${base58btc.encode(publicKey)}`;
+      const channel = `/peer/${base58btc.encode(publicKey)}`;
       this._peers[remotePeerId] = {
         id: remotePeerId,
-        did: remotePeerDID,
+        did,
         channel,
         meta: {},
         seen: Date.now(),
       };
-      console.info(`[iridium] listening on ${channel} (${remotePeerId})`);
-      await this.ipfs.pubsub
-        .subscribe(channel, this.onPeerMessage.bind(this), {
-          onError: (err) => {
-            console.info('pubsub error', err);
-          },
-        })
-        .catch((err) => {
-          console.info('pubsub error', err);
-        });
+      this.logger.info('iridium/onPeerConnect', `subscribing to ${channel}`, {
+        did,
+      });
+      await this.ipfs.pubsub.subscribe(channel, this.onPeerMessage.bind(this));
+      // await this.waitForTopicPeer(channel, remotePeerId);
+      this.emit('peer:connect', {
+        peerId: remotePeerId,
+        did,
+      });
     }
+  }
+
+  async onSyncNodeMessage(message: any) {
+    const { type, payload } = message;
+    this.logger.info('iridium/onSyncNodePeerMessage', `received ${type}`, {
+      type,
+      payload,
+    });
   }
 
   async decodePayload<T = IridiumDocument | string>(
@@ -404,12 +587,9 @@ export default class Iridium extends Emitter<
 
   async encodePayload(
     payload: IridiumDocument | string,
-    options: IridiumWriteOptions
+    options: IridiumWriteOptions & { link?: boolean } = {}
   ) {
-    if (options.dag) {
-      const cid = await this.store(payload, options);
-      return json.encode({ type: 'dag', body: cid });
-    } else if (options.encrypt) {
+    if (options.encrypt) {
       return json.encode({
         type: 'jwe',
         body: await this.did.createJWE(
@@ -423,23 +603,33 @@ export default class Iridium extends Emitter<
         type: 'jws',
         body: await this.did.createJWS(
           payload,
-          options.sign === true ? undefined : options.sign.options
+          options.sign === true ? undefined : options.sign
         ),
       });
     }
-    return json.encode({ type: 'text', body: payload });
+    const encoded = json.encode({ type: 'text', body: payload });
+
+    if (options.link) {
+      const cid = await this.store(encoded, options);
+      return json.encode({ type: 'dag', body: cid });
+    }
+    return encoded;
   }
 
   async onPeerMessage(message: IridiumPubsubEvent) {
+    this.logger.info('iridium/onPeerMessage', message);
     if (message.from.toString() === this.peerId) {
       return;
     }
-    console.info('[iridium] onPeerMessage', message);
     const { from, data, topic } = message;
     const payload = json.decode(data);
-    const decoded = await this.decodePayload(payload);
+    const decoded = await this.decodePayload<IridiumDocument>(payload);
 
-    this.emit(topic, { from, payload: decoded });
+    this.emit(topic, {
+      from,
+      payload: decoded,
+      type: payload.type,
+    });
   }
 
   /**
@@ -455,12 +645,12 @@ export default class Iridium extends Emitter<
         if (channel) {
           await this.broadcast(channel, payload, options);
         } else {
-          console.warn(`[iridium] no channel for ${peerId}`);
+          this.logger.warn('iridium/send', `no channel for ${peerId}`);
         }
       })
     )
       .catch((err) => {
-        console.error('[iridium] failed to send message', err);
+        this.logger.error('iridium/send', `error sending message`, err);
         return false;
       })
       .then(() => {
@@ -469,18 +659,21 @@ export default class Iridium extends Emitter<
   }
 
   /**
-   * Broadcast a payload to all peers
+   * Broadcast a payload on a given channel
    */
   async broadcast(
     channel: string,
     payload: string | IridiumDocument,
     options: IridiumWriteOptions = {}
   ) {
-    console.info('[iridium] broadcast', { channel, payload });
+    this.logger.info(
+      'iridium/broadcast',
+      `broadcasting on ${channel}`,
+      payload
+    );
     const encoded = await this.encodePayload(payload, options);
-    return this.ipfs.pubsub.publish(channel, encoded).catch((err) => {
-      console.error('[iridium] failed to publish message', err);
-    });
+    console.info('broadcasting', encoded, channel);
+    return this.ipfs.pubsub.publish(channel, encoded);
   }
 
   /**
@@ -489,25 +682,13 @@ export default class Iridium extends Emitter<
    * @returns
    */
   async subscribe(channel: string, options: IridiumRequestOptions = {}) {
-    console.info('[iridium] subscribe', channel);
-    return this.ipfs.pubsub.subscribe(
-      `/iridium${channel.startsWith('/') ? channel : `/${channel}`}`,
-      this.onPeerMessage.bind(this),
-      {
-        ...options,
-        onError: (error) => {
-          this.emit('error', { type: 'error', error });
-        },
-      }
-    );
+    this.logger.info('iridium/subscribe', `subscribing to ${channel}`);
+    return this.ipfs.pubsub.subscribe(channel, this.onPeerMessage.bind(this));
   }
 
-  async unsubscribe(channel: string, handler?: EventHandler<Message>) {
-    console.info('[iridium] unsubscribe', channel);
-    return this.ipfs.pubsub.unsubscribe(
-      `/iridium${channel.startsWith('/') ? channel : `/${channel}`}`,
-      handler
-    );
+  async unsubscribe(channel: string) {
+    this.logger.info('iridium/unsubscribe', `unsubscribing from ${channel}`);
+    return this.ipfs.pubsub.unsubscribe(channel);
   }
 
   /**
@@ -543,28 +724,38 @@ export default class Iridium extends Emitter<
    * @param payload - payload to store
    * @returns
    */
-  async store(payload: any, config: IridiumWriteOptions = {}) {
-    let encoded;
-    let defaultDagOptions: IridiumDagOptions = {};
-    if (config.encrypt) {
-      encoded = await this.did.createJWE(
+
+  async store(payload: any, config: IridiumWriteOptions = {}): Promise<CID> {
+    this.logger.debug('iridium/store', 'storing payload', payload, config);
+    const putOptions = Object.assign({}, DEFAULT_DAG_PUT_OPTIONS, config.dag);
+    if (config.sign) {
+      const jws = await this.did.createDagJWS(
         payload,
-        config.encrypt.recipients || [this.id],
-        config.encrypt.options
+        config.sign === true ? undefined : config.sign
       );
-      defaultDagOptions.storeCodec = 'dag-jose';
-      defaultDagOptions.hashAlg = 'sha2-256';
-    } else if (config.sign) {
-      encoded = await this.did.createJWS(
-        payload,
-        config.sign === true ? undefined : config.sign.options
-      );
-    } else {
-      encoded = json.encode(payload);
+      const cid = await this.ipfs.dag.put(jws, putOptions);
+      this.logger.debug('iridium/store', 'stored signed payload', { cid });
+      return cid;
     }
 
-    const hash = await this.ipfs.dag.put(encoded, config.dag);
-    return hash;
+    if (config.encrypt === false) {
+      const cid = await this.ipfs.dag.put(payload, putOptions);
+      this.logger.debug('iridium/store', 'stored payload', { cid });
+      return cid;
+    }
+
+    const jwe = await this.did.createDagJWE(
+      payload,
+      config.encrypt?.recipients || [this.id],
+      config.encrypt?.options
+    );
+    const cid = await this.ipfs.dag.put(jwe, putOptions);
+    this.logger.debug('iridium/store', 'stored encrypted payload', {
+      jwe,
+      cid,
+      putOptions,
+    });
+    return cid;
   }
 
   /**
@@ -578,19 +769,30 @@ export default class Iridium extends Emitter<
       cid = CID.parse(cid);
     }
 
+    this.logger.info('iridium/load', 'loading payload', {
+      cid,
+      options,
+    });
+
     const doc = await this.ipfs.dag
-      .get(cid, Object.assign({}, DEFAULT_LOAD_OPTIONS, options))
+      .get(cid, Object.assign({}, DEFAULT_DAG_GET_OPTIONS, options.dag))
       .catch(() => undefined);
 
+    console.info('iridium/load', 'loaded payload', { doc, cid });
     let object = doc?.value || ({} as IridiumDocument);
-    if (options.decrypt) {
-      object = await this.decrypt(object, options.decryptOptions);
+
+    if (options.decrypt !== false) {
+      console.debug('iridium/load', 'decrypting payload', object);
+      object = await this.did.decryptDagJWE(object);
+      console.debug('iridium/load', 'decrypted payload', object);
     } else if (options.verifySignature) {
-      const jws = (await this.load(cid, options)) as DagJWS;
-      if (!(await this.did.verifyJWS(jws))) {
-        throw new Error('invalid signature');
-      }
-      object = jws.payload;
+      console.debug('iridium/load', 'verifying payload', object);
+      object = await this.verifySigned(object);
+      console.debug('iridium/load', 'verified payload', object);
+    } else {
+      console.debug('iridium/load', 'decoding payload', object);
+      object = json.decode(object);
+      console.debug('iridium/load', 'decoded payload', object);
     }
 
     if (object._links && options.depth) {
@@ -651,40 +853,57 @@ export default class Iridium extends Emitter<
       return get(this._cache, convertPath(path));
     }
 
-    // load and decrypt JWE from IPNS
-
     let _root: IridiumDocument = {};
+    let _rootCID: CID | undefined = undefined;
+    const resolve = Object.assign({}, DEFAULT_RESOLVE_OPTIONS, config.resolve);
+    this.logger.info('iridium/get', 'loading IPNS document', {
+      peerId: this.peerId,
+      resolve,
+    });
     try {
-      for await (const cidStr of this.ipfs.name.resolve(
-        this.peerId,
-        Object.assign({}, DEFAULT_RESOLVE_OPTIONS, config.resolve)
-      )) {
-        if (cidStr) {
-          const cid = CID.parse(cidStr.substring(6));
-          this._cid = cid;
+      const results = this.ipfs.name.resolve(this._peerId, resolve);
+      for await (const cid of results) {
+        if (cid) {
+          this.logger.debug(
+            'iridium/get',
+            'resolved IPNS document, loading...',
+            {
+              cid,
+            }
+          );
+          const _cid = CID.parse(cid.substring(6));
           try {
             const doc = await this.load(
-              cid,
+              _cid,
               Object.assign({}, DEFAULT_LOAD_OPTIONS, config.load)
             );
+            this.logger.debug('iridium/get', 'loaded IPNS document', {
+              cid,
+              doc,
+            });
             if (doc) {
               _root = doc;
+              _rootCID = _cid;
             }
           } catch (_) {
-            console.error('failed to load encrypted document', _);
+            this.logger.error(
+              'iridium/get',
+              'failed to load document resolved from IPNS',
+              _
+            );
           }
         }
       }
-    } catch (error) {
-      console.warn(`[iridium] failed to resolve IPNS record: ${error}`);
+    } catch (e) {
+      this.logger.error('iridium/get', 'failed to resolve IPNS document', e);
     }
 
     if (path === '/') {
       this._cache = _root;
+      this._cid = _rootCID;
       return this._cache;
     }
 
-    // update the root doc in memory
     if (this._cache) {
       set(this._cache, convertPath(path), _root);
     }
@@ -698,35 +917,58 @@ export default class Iridium extends Emitter<
    * @returns
    */
   async set(path = '/', object: any, options: IridiumSetOptions = {}) {
-    if (!this._cid || !this._cache) {
-      await this.get('/');
-    }
-
     const prev = this._cache || {};
     const next = path === '/' ? object : { ...prev };
     if (path !== '/') {
       set(next, convertPath(path), object);
     }
 
-    const cid = await this.store(next, options.store);
+    console.info('set', path, next);
+    const cid = await this.store(
+      next,
+      options.store || { encrypt: { recipients: [this.id] } }
+    );
+    this.logger.info('iridium/set', 'stored document', { cid });
+    // clear previous ipns pin
+    if (this._cid) {
+      this.logger.info('iridium/set', 'removing previous IPNS pin', {
+        cid: this._cid,
+      });
+      await this.ipfs.pin.rm(this._cid);
+    }
+
+    this.logger.debug('iridium/set', 'publishing to ipns', options.publish);
     await this.ipfs.name
-      .publish(`/ipfs/${cid}`, options.publish)
-      .catch(() => {});
+      .publish(
+        cid,
+        Object.assign({}, DEFAULT_IPNS_PUBLISH_OPTIONS, options.publish)
+      )
+      .catch((error) => {
+        this.logger.error('iridium/set', 'failed to publish to ipns', error);
+      })
+      .then((res) => {
+        this.logger.debug('iridium/set', 'published to ipns', res);
+      });
+
+    this.logger.debug('iridium/set', 'state:changed', { path, value: next });
+    this.emit('state:changed', {
+      path,
+      value: next,
+    });
     this._cid = cid;
     this._cache = next;
     return cid;
   }
 
-  waitForTopicPeer(
-    topic: string,
-    peer: PeerId | string,
-    retryOptions: any = {}
-  ) {
-    const peerIdString = typeof peer !== 'string' ? peer.toString() : peer;
+  waitForTopicPeer(topic: string, peer?: PeerId | string, retryOptions?: any) {
     return pRetry(async () => {
       const peers = await this.ipfs.pubsub.peers(topic);
+      if (!peer) {
+        if (peers.length) return;
+        throw new Error(`No peers found for topic ${topic}`);
+      }
+      const peerIdString = typeof peer !== 'string' ? peer.toString() : peer;
       const peerIds = peers.map((p) => p.toString());
-
       if (!peerIds.includes(peerIdString)) {
         throw new Error(
           `Could not find peer ${peerIdString} in topic ${topic}`

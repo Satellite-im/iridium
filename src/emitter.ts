@@ -1,6 +1,6 @@
 export type EmitterCallback<T> = (event: T) => void;
 
-export class Emitter<T> {
+export class Emitter<T = any> {
   private readonly _store: { [key: string]: any[] };
 
   constructor() {

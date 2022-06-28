@@ -1,6 +1,7 @@
 {
   "extends": "tsconfig.json",
   "compilerOptions": {
+    "declaration": true,
     "paths": {
       "ipfs-core": ["./src/modules/ipfs-core/ipfs-core.js"]
     }

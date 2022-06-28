@@ -13,6 +13,7 @@ import IridiumTerminal from '../../dist/readline-adapter';
 const client = await Iridium.fromSeedString('user b seed', {
   config: {
     followedPeers: ['12D3KooWJ1KLJy1UiNZWGe96WPgsRjWKnZQQ6erbc5KebT5sne6e'],
+    syncNodes: ['12D3KooWQ3jkKp2rm42mC5h4mH5hjg9MfBUad8kjQkLokB2uXmd1'],
     ipfs: {
       config: {
         Addresses: {

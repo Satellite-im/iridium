@@ -22,10 +22,12 @@ export default class IridiumTerminal extends Emitter<IridiumDocument> {
   ) {
     super();
     instance.on('*', (event: IridiumDocument) => {
+      if (['peer:discovery'].includes(event.channel)) return;
       console.info(
         `[iridium] ${event.channel} ${event.from ? `(${event.from}):` : ''} ${
           event.payload ? JSON.stringify(event.payload, null, 2) : ''
-        }`
+        }`,
+        event
       );
       this.emit(event.channel as string, event);
     });
@@ -41,8 +43,13 @@ export default class IridiumTerminal extends Emitter<IridiumDocument> {
         console.log(await result);
         return;
       },
-      whoami: () => {
-        return { peerId: instance.peerId, did: instance.id };
+      whoami: async () => {
+        const { addresses } = await instance.ipfs.id();
+        return {
+          peerId: instance.peerId,
+          did: instance.id,
+          addresses: addresses.map((a) => a.toString()),
+        };
       },
       pins: async () => {
         const pins = await instance.ipfs.pin.ls();

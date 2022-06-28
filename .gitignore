@@ -12,3 +12,4 @@ peerid.json
 src/sync*
 dist/sync*
 example/sync*
+src/sync*
