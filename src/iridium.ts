@@ -462,7 +462,7 @@ export default class Iridium extends Emitter<
       const remotePeerId = event.detail.id.toString();
       if (this.knownPeerIds.includes(remotePeerId)) {
         // manually connect to the peer
-        await this.ipfs.swarm.connect(event.detail.id);
+        await this.ipfs.swarm.connect(event.detail.id).catch(() => {});
       }
       this.emit('peer:discovery', {
         peerId: remotePeerId,
@@ -727,35 +727,41 @@ export default class Iridium extends Emitter<
 
   async store(payload: any, config: IridiumWriteOptions = {}): Promise<CID> {
     this.logger.debug('iridium/store', 'storing payload', payload, config);
-    const putOptions = Object.assign({}, DEFAULT_DAG_PUT_OPTIONS, config.dag);
-    if (config.sign) {
-      const jws = await this.did.createDagJWS(
+    try {
+      const putOptions = Object.assign({}, DEFAULT_DAG_PUT_OPTIONS, config.dag);
+      if (config.sign) {
+        const jws = await this.did.createDagJWS(
+          payload,
+          config.sign === true ? undefined : config.sign
+        );
+        const cid = await this.ipfs.dag.put(jws, putOptions);
+        this.logger.debug('iridium/store', 'stored signed payload', { cid });
+        return cid;
+      }
+
+      if (config.encrypt === false) {
+        const cid = await this.ipfs.dag.put(payload, putOptions);
+        this.logger.debug('iridium/store', 'stored payload', { cid });
+        return cid;
+      }
+
+      const jwe = await this.did.createDagJWE(
         payload,
-        config.sign === true ? undefined : config.sign
+        config.encrypt?.recipients || [this.id],
+        config.encrypt?.options
       );
-      const cid = await this.ipfs.dag.put(jws, putOptions);
-      this.logger.debug('iridium/store', 'stored signed payload', { cid });
+      const cid = await this.ipfs.dag.put(jwe, putOptions);
+      this.logger.debug('iridium/store', 'stored encrypted payload', {
+        jwe,
+        cid,
+        putOptions,
+      });
       return cid;
+    } catch (error) {
+      this.logger.error('iridium/store', 'error storing payload');
+      console.error(error);
+      throw error;
     }
-
-    if (config.encrypt === false) {
-      const cid = await this.ipfs.dag.put(payload, putOptions);
-      this.logger.debug('iridium/store', 'stored payload', { cid });
-      return cid;
-    }
-
-    const jwe = await this.did.createDagJWE(
-      payload,
-      config.encrypt?.recipients || [this.id],
-      config.encrypt?.options
-    );
-    const cid = await this.ipfs.dag.put(jwe, putOptions);
-    this.logger.debug('iridium/store', 'stored encrypted payload', {
-      jwe,
-      cid,
-      putOptions,
-    });
-    return cid;
   }
 
   /**
