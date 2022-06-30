@@ -25,6 +25,7 @@ export type IridiumRequestOptions = {
 export type IridiumResolveOptions = IridiumRequestOptions & {
   nocache?: boolean;
   recursive?: boolean;
+  stream?: boolean;
 };
 
 export type IridiumReadOptions = {
