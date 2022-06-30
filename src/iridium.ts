@@ -37,7 +37,7 @@ import { createFromPubKey } from '@libp2p/peer-id-factory';
 const resolver = KeyDIDResolver.getResolver();
 const textEncoder = new TextEncoder();
 
-const DEFAULT_REQUEST_OPTIONS = { timeout: 3000 };
+const DEFAULT_REQUEST_OPTIONS = {};
 const DEFAULT_RESOLVE_OPTIONS = {
   ...DEFAULT_REQUEST_OPTIONS,
   stream: false,
@@ -238,7 +238,13 @@ export default class Iridium extends Emitter<
     // kick out all peers because the peerstore can't be trusted
     const peers = await this.ipfs.swarm.peers();
     for (const peer of peers) {
-      await this.ipfs.swarm.disconnect(peer.peer);
+      try {
+        await this.ipfs.swarm.disconnect(peer.peer);
+        await this.ipfs.libp2p.pubsub.removePeer(peer.peer);
+        await this.ipfs.libp2p.peerStore.delete(peer.peer);
+        await this.ipfs.libp2p.addressBook.removePeer(peer.peer);
+        await this.ipfs.libp2p.connectionManager.removePeer(peer.peer);
+      } catch (_) {}
     }
 
     const addresses = await this.ipfs.swarm.localAddrs();
@@ -254,17 +260,7 @@ export default class Iridium extends Emitter<
       pinned.push(pin.cid);
     }
     this.logger.info('iridium/start', 'pinned', { pinned });
-
-    // reset libp2p pubsub store (hacky)
-    const pubsub = this.ipfs.libp2p.peerStore.components.pubsub;
-    pubsub.mesh.clear();
-    pubsub.peers.clear();
-    pubsub.topics.clear();
-    pubsub.outbound.clear();
-    this.logger.info('iridium/start', 'reset pubsub stores', { pubsub });
-
     await this.initializeListeners();
-
     return this.emit('ready', {});
   }
 
@@ -278,16 +274,26 @@ export default class Iridium extends Emitter<
       this.logger.info('iridium/stop', 'unsubscribing from channel', {
         channel,
       });
-      await this.ipfs.pubsub.unsubscribe(channel, undefined, { timeout: 1000 });
+      await this.ipfs.pubsub.unsubscribe(channel, undefined, {});
     }
     const peers = await this.ipfs.swarm.peers();
     for (const peer of peers) {
       this.logger.info('iridium/stop', 'disconnecting from peer', {
         peer: peer.peer,
       });
-      await this.ipfs.swarm.disconnect(peer.peer);
-      await this.ipfs.libp2p.peerStore.delete(peer.peer);
+      try {
+        await this.ipfs.swarm.disconnect(peer.peer);
+        await this.ipfs.libp2p.pubsub.removePeer(peer.peer);
+        await this.ipfs.libp2p.peerStore.delete(peer.peer);
+        await this.ipfs.libp2p.addressBook.removePeer(peer.peer);
+        await this.ipfs.libp2p.connectionManager.removePeer(peer.peer);
+      } catch (_) {}
     }
+
+    const pubsub = this.ipfs.libp2p.pubsub;
+    console.info('stopping pubsub', pubsub);
+    await pubsub.stop();
+
     Object.values(this._timers).forEach((timer) => {
       clearInterval(timer);
       clearTimeout(timer);
@@ -443,26 +449,27 @@ export default class Iridium extends Emitter<
       'peer:disconnect',
       async (event: any) => {
         const peerId = event.detail.remotePeer.toString();
+        await this.ipfs.libp2p.pubsub.removePeer(event.detail.remotePeer);
+        await this.ipfs.libp2p.peerStore.delete(event.detail.remotePeer);
         if (this._peers[peerId]) {
-          this.logger.info(
-            'iridium/listeners',
-            `peer disconnected, waiting 10s: ${peerId}`
+          this.logger.info('iridium/listeners', `peer disconnected: ${peerId}`);
+          await this.ipfs.pubsub.unsubscribe(
+            this._peers[peerId].channel,
+            undefined,
+            {}
           );
-          let disconnectTime = Date.now();
-          setTimeout(async () => {
-            if (
-              !this._peers[peerId] ||
-              this._peers[peerId].seen >= disconnectTime
-            )
-              return;
-            this.logger.info('iridium/listeners', `peer timed out: ${peerId}`);
-            await this.ipfs.pubsub.unsubscribe(
-              this._peers[peerId].channel,
-              undefined,
-              { timeout: 3000 }
+          try {
+            await this.ipfs.swarm.disconnect(event.detail.remotePeer);
+            await this.ipfs.libp2p.pubsub.removePeer(event.detail.remotePeer);
+            await this.ipfs.libp2p.peerStore.delete(event.detail.remotePeer);
+            await this.ipfs.libp2p.addressBook.removePeer(
+              event.detail.remotePeer
             );
-            delete this._peers[peerId];
-          }, 30000);
+            await this.ipfs.libp2p.connectionManager.removePeer(
+              event.detail.remotePeer
+            );
+          } catch (_) {}
+          delete this._peers[peerId];
         }
       }
     );
@@ -528,10 +535,7 @@ export default class Iridium extends Emitter<
         const channel = `sync/${did}`;
         await this.ipfs.pubsub.subscribe(
           channel,
-          this.onSyncNodeMessage.bind(this),
-          {
-            timeout: 3000,
-          }
+          this.onSyncNodeMessage.bind(this)
         );
         await this.waitForTopicPeer(channel, remotePeerId);
         const payload = { type: 'sync-init', at: Date.now() };
@@ -567,9 +571,8 @@ export default class Iridium extends Emitter<
       this.logger.info('iridium/onPeerConnect', `subscribing to ${channel}`, {
         did,
       });
-      await this.ipfs.pubsub.subscribe(channel, this.onPeerMessage.bind(this), {
-        timeout: 3000,
-      });
+      await this.ipfs.pubsub.subscribe(channel, this.onPeerMessage.bind(this));
+      await this.waitForTopicPeer(channel, remotePeerId);
       // await this.waitForTopicPeer(channel, remotePeerId);
       this.emit('peer:connect', {
         peerId: remotePeerId,
@@ -700,7 +703,7 @@ export default class Iridium extends Emitter<
   async broadcast(
     channel: string,
     payload: string | IridiumDocument,
-    options: IridiumWriteOptions = { timeout: 3000 }
+    options: IridiumWriteOptions = {}
   ) {
     this.logger.info(
       'iridium/broadcast',
@@ -719,7 +722,7 @@ export default class Iridium extends Emitter<
    */
   async subscribe(
     channel: string,
-    options: IridiumRequestOptions = { timeout: 3000 },
+    options: IridiumRequestOptions = {},
     callback: any = undefined
   ) {
     const subscriptions = await this.ipfs.pubsub.ls();
@@ -737,7 +740,7 @@ export default class Iridium extends Emitter<
 
   async unsubscribe(channel: string, handler: any = undefined) {
     this.logger.info('iridium/unsubscribe', `unsubscribing from ${channel}`);
-    return this.ipfs.pubsub.unsubscribe(channel, handler, { timeout: 3000 });
+    return this.ipfs.pubsub.unsubscribe(channel, handler);
   }
 
   /**
@@ -990,7 +993,7 @@ export default class Iridium extends Emitter<
       this.logger.info('iridium/set', 'removing previous IPNS pin', {
         cid: this._cid,
       });
-      await this.ipfs.pin.rm(this._cid);
+      await this.ipfs.pin.rm(this._cid).catch(() => {});
     }
 
     this.logger.debug('iridium/set', 'publishing to ipns', options.publish);
