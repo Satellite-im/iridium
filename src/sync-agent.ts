@@ -1,9 +1,8 @@
-import * as json from 'multiformats/codecs/json';
-import Iridium from './iridium';
-import { IridiumConfig, IridiumSeedConfig } from './types';
-import IridiumTerminal from './readline-adapter';
-import * as readline from 'node:readline/promises';
+import * as readline from 'node:readline';
 import { stdin as input, stdout as output } from 'node:process';
+import Iridium from './iridium';
+import { IridiumSeedConfig } from './types';
+import IridiumTerminal from './readline-adapter';
 
 export type IridiumSyncAgentConfig = {
   peers?: {
@@ -51,6 +50,17 @@ const DEFAULT_CONFIG: IridiumSyncAgentConfig = {
     limit: 100000,
     maxSize: 256,
   },
+  server: {
+    config: {
+      ipfs: {
+        config: {
+          Addresses: {
+            Swarm: ['/ip4/127.0.0.1/tcp/4002', '/ip4/127.0.0.1/tcp/4003/ws'],
+          },
+        },
+      },
+    },
+  },
 };
 
 type PeerData = {
@@ -70,6 +80,7 @@ export default class IridiumSyncAgent {
   ) {
     this.instance.on('peer:connect', this.onPeerConnect.bind(this));
     this.instance.on(`sync/${this.instance.id}`, this.onSyncMessage.bind(this));
+    this.instance.on('friends/announce', this.onFriendsAnnounce.bind(this));
   }
 
   async start() {
@@ -77,6 +88,10 @@ export default class IridiumSyncAgent {
     await this.instance.start();
     await terminal.exec('whoami');
     await terminal.exec('pins');
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 1000);
+    });
     await this.instance.subscribe(`sync/${this.instance.id}`);
     await this.instance.subscribe(`friends/announce`);
 
@@ -111,8 +126,12 @@ export default class IridiumSyncAgent {
     console.info('peer connected', peerId);
   }
 
+  onFriendsAnnounce(message: any) {
+    console.info('friends announce', message);
+  }
+
   async onSyncMessage(message: any) {
-    console.info(message);
+    console.info('sync message', message);
     const { from, payload, type } = message;
 
     if (!['jwe', 'jws'].includes(type)) {

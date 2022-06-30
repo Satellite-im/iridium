@@ -11,6 +11,7 @@ specifiers:
   '@libp2p/peer-id': ^1.1.10
   '@libp2p/peer-id-factory': ^1.0.11
   '@libp2p/webrtc-star-signalling-server': ^1.0.5
+  '@libp2p/websockets': ^3.0.0
   '@noble/ed25519': ^1.6.0
   '@rollup/plugin-alias': ^3.1.9
   '@rollup/plugin-commonjs': ^22.0.0
@@ -28,6 +29,7 @@ specifiers:
   concurrently: ^7.2.1
   dag-jose: ^2.0.0
   dag-jose-utils: ^2.0.0
+  datastore-core: ^7.0.1
   did-jwt: ^6.1.2
   dids: ^3.2.0
   dotenv: ^16.0.1
@@ -71,6 +73,7 @@ dependencies:
   '@libp2p/delegated-peer-routing': 1.0.5
   '@libp2p/peer-id': 1.1.13
   '@libp2p/peer-id-factory': 1.0.15
+  '@libp2p/websockets': 3.0.0
   '@noble/ed25519': 1.6.0
   '@rollup/plugin-alias': 3.1.9_rollup@2.75.7
   '@stablelib/ed25519': 1.0.2
@@ -78,6 +81,7 @@ dependencies:
   blockcodec-to-ipld-format: 2.0.0
   dag-jose: 2.0.0
   dag-jose-utils: 2.0.0
+  datastore-core: 7.0.1
   did-jwt: 6.2.0
   dids: 3.2.0
   fast-json-stable-stringify: 2.1.0
@@ -910,6 +914,32 @@ packages:
       it-stream-types: 1.0.4
     dev: false
 
+  /@libp2p/interface-connection/1.0.1:
+    resolution: {integrity: sha512-4MP+RvqR5xu6EWgrebLo34HWm/X+hGXtzsCKmNfmLN9bpaYhEobzL4Rm3RYi/0ICrgAZmoU8n+x8widiuwERew==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+    dependencies:
+      '@libp2p/interface-peer-id': 1.0.4
+      '@libp2p/interfaces': 3.0.3
+      '@multiformats/multiaddr': 10.2.1
+      it-stream-types: 1.0.4
+    transitivePeerDependencies:
+      - supports-color
+      - undici
+    dev: false
+
+  /@libp2p/interface-connection/2.1.1:
+    resolution: {integrity: sha512-gjugaMsZvfo3r4tCc/yPifVQsfLogmEmJtW+eXMNiNDna3ZfmwWD9Z+KyEwuVsXKs0C4GESXei2y4SJSCEfkbA==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+    dependencies:
+      '@libp2p/interface-peer-id': 1.0.4
+      '@libp2p/interfaces': 3.0.3
+      '@multiformats/multiaddr': 10.2.1
+      it-stream-types: 1.0.4
+    transitivePeerDependencies:
+      - supports-color
+      - undici
+    dev: false
+
   /@libp2p/interface-keys/1.0.3:
     resolution: {integrity: sha512-K8/HlRl/swbVTWuGHNHF28EytszYfUhKgUHfv8CdbMk9ZA/bgO4uU+d9rcrg/Dhw3511U3aRz2bwl2psn6rJfg==}
     engines: {node: '>=16.0.0', npm: '>=7.0.0'}
@@ -920,6 +950,51 @@ packages:
     engines: {node: '>=16.0.0', npm: '>=7.0.0'}
     dependencies:
       multiformats: 9.7.0
+    dev: false
+
+  /@libp2p/interface-peer-info/1.0.2:
+    resolution: {integrity: sha512-8dGBj8+6PdBDsMAASxX2sECnWhK7zAnv8iCFgYXY5Z6fbQwA+7iVAea9FdjgyLapdIzDarttPt3Gdou8tXZdGg==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+    dependencies:
+      '@libp2p/interface-peer-id': 1.0.4
+      '@multiformats/multiaddr': 10.2.1
+    transitivePeerDependencies:
+      - supports-color
+      - undici
+    dev: false
+
+  /@libp2p/interface-peer-store/1.2.0:
+    resolution: {integrity: sha512-4244DmDppLf6Av6gALoO7iMPVhBO6Hx3dbkUy7Vb3OfxS//Ix+uDUib2hypIK2Q2rKmn3dfzvDBt0GwlkSMJCg==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+    dependencies:
+      '@libp2p/interface-peer-id': 1.0.4
+      '@libp2p/interface-peer-info': 1.0.2
+      '@libp2p/interface-record': 1.0.2
+      '@libp2p/interfaces': 3.0.3
+      '@multiformats/multiaddr': 10.2.1
+    transitivePeerDependencies:
+      - supports-color
+      - undici
+    dev: false
+
+  /@libp2p/interface-record/1.0.2:
+    resolution: {integrity: sha512-bYNxKtsUOsNucHeAXCZbAQxFXwR7JvoOmodwEByriMvTWYRbd6d8rm8VHZ/17QgdRFlIwNnpIPuoyyLQ8Wn1rQ==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+    dependencies:
+      '@libp2p/interface-peer-id': 1.0.4
+    dev: false
+
+  /@libp2p/interface-transport/1.0.2:
+    resolution: {integrity: sha512-alOdxYfYQp/v2rMGc5V7GSfRUSJc4C38HfqI3CLEfSD9DJ3NFid804MvbOS/v4mP4yWtHyN/tfR5fmH8mmGqPw==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+    dependencies:
+      '@libp2p/interface-connection': 2.1.1
+      '@libp2p/interfaces': 3.0.3
+      '@multiformats/multiaddr': 10.2.1
+      it-stream-types: 1.0.4
+    transitivePeerDependencies:
+      - supports-color
+      - undici
     dev: false
 
   /@libp2p/interfaces/2.0.4:
@@ -935,6 +1010,11 @@ packages:
     transitivePeerDependencies:
       - supports-color
       - undici
+
+  /@libp2p/interfaces/3.0.3:
+    resolution: {integrity: sha512-8IIxw7TKpaYTtVfZN3jePLlm/E/VzqPpqerN+jhA+1s86akRSeyxVBYi3W9SWDSf0oIauHJSDE8KNxLceAfeag==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+    dev: false
 
   /@libp2p/kad-dht/1.0.16:
     resolution: {integrity: sha512-R5tEPYFMYSqQ7HnkavKSG69Bv/6hLOQJaFE5hRqyUR0DGNDMj7zUgQJcRe9O7cUoa5vgyUunwQ/sTy+Ze20Vkg==}
@@ -1264,6 +1344,25 @@ packages:
       - undici
     dev: false
 
+  /@libp2p/utils/2.0.1:
+    resolution: {integrity: sha512-R0r9fkskuTmm5jMrlRXWpTdYJeDYcNQ1KdfSEmoVlCs5AlTeWn31+cdaHQihSEbkpEKtVCExfsZkwa3f7C1l8A==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+    dependencies:
+      '@achingbrain/ip-address': 8.1.0
+      '@libp2p/interface-connection': 1.0.1
+      '@libp2p/interface-peer-store': 1.2.0
+      '@libp2p/logger': 2.0.0
+      '@multiformats/multiaddr': 10.2.1
+      abortable-iterator: 4.0.2
+      err-code: 3.0.1
+      is-loopback-addr: 2.0.1
+      it-stream-types: 1.0.4
+      private-ip: 2.3.3
+    transitivePeerDependencies:
+      - supports-color
+      - undici
+    dev: false
+
   /@libp2p/webrtc-peer/1.0.9:
     resolution: {integrity: sha512-K1mVGRLRhBdT5eqcs8RZwkkkzjRJHgu6g1t+yjyHZkes5vE9paHF2CaQxejMWRdqImOQpPY7c01wEI6cPsT6Cg==}
     engines: {node: '>=16.0.0', npm: '>=7.0.0'}
@@ -1376,6 +1475,31 @@ packages:
       - mocha
       - supports-color
       - typescript
+      - undici
+      - utf-8-validate
+    dev: false
+
+  /@libp2p/websockets/3.0.0:
+    resolution: {integrity: sha512-PxXcMSZWBF8IGCJ9/0skEXiG/tkAD7hRVUZ9jcTQggNNIgeT5EdXUhCWc8cXLk0Z2QH6bCX1W6qflUK4CG9TmA==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+    dependencies:
+      '@libp2p/interface-connection': 2.1.1
+      '@libp2p/interface-transport': 1.0.2
+      '@libp2p/interfaces': 3.0.3
+      '@libp2p/logger': 2.0.0
+      '@libp2p/utils': 2.0.1
+      '@multiformats/mafmt': 11.0.2
+      '@multiformats/multiaddr': 10.2.1
+      '@multiformats/multiaddr-to-uri': 9.0.1
+      abortable-iterator: 4.0.2
+      err-code: 3.0.1
+      it-ws: 5.0.2
+      p-defer: 4.0.0
+      p-timeout: 5.1.0
+      wherearewe: 1.0.2
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
       - undici
       - utf-8-validate
     dev: false

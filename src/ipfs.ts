@@ -5,6 +5,9 @@ import type { PeerId } from 'ipfs-core/ipns';
 import * as ipfsHttpClient from 'ipfs-http-client';
 import { DelegatedContentRouting } from '@libp2p/delegated-content-routing';
 import { DelegatedPeerRouting } from '@libp2p/delegated-peer-routing';
+import { WebSockets } from '@libp2p/websockets';
+import * as filters from '@libp2p/websockets/filters';
+import { MemoryDatastore } from 'datastore-core';
 import type { IridiumConfig } from './types';
 
 export async function ipfsNodeFromKey(
@@ -49,15 +52,9 @@ export async function ipfsConfig(
   const conf = Object.assign(
     {},
     {
-      repo: 'iridium-' + Math.random(),
+      repo: 'iridium',
       repoAutoMigrate: false,
       relay: { enabled: true, hop: { enabled: true, active: true } },
-      EXPERIMENTAL: { ipnsPubsub: true, sharding: true },
-      offline: true,
-      silent: false,
-      preload: {
-        enabled: true,
-      },
       config: {
         Addresses: {
           API: '/dns4/ipfs.infura.io/tcp/5001/https',
@@ -67,6 +64,49 @@ export async function ipfsConfig(
             '/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star',
             '/ip4/127.0.0.1/tcp/9090/ws/p2p-webrtc-star',
           ],
+        },
+        Bootstrap: [
+          '/ip4/127.0.0.1/tcp/15003/ws/p2p/QmekhznL3jS9HgHViLkQ3VWY6XmgierxHrUL4JXLFqgAap',
+          '/ip4/127.0.0.1/tcp/8000/p2p/QmekhznL3jS9HgHViLkQ3VWY6XmgierxHrUL4JXLFqgAap',
+          '/ip4/127.0.0.1/tcp/9090/ws/p2p-webrtc-star',
+        ],
+      },
+      libp2p: {
+        peerId,
+        // datastore: new MemoryDatastore(),
+        peerRouting: {
+          refreshManager: {
+            enabled: true,
+            interval: 6e5,
+            bootDelay: 10e3,
+          },
+        },
+        identify: {
+          protocolPrefix: 'iridium',
+        },
+        ping: {
+          protocolPrefix: 'iridium',
+        },
+        transports: [
+          new WebSockets({
+            filter: filters.all,
+          }),
+        ],
+        peerStore: {
+          persistence: true,
+          threshold: 5,
+        },
+        relay: {
+          enabled: true,
+          hop: {
+            enabled: true,
+            active: true,
+          },
+          advertise: {
+            bootDelay: 60 * 1000,
+            enabled: true,
+            ttl: 30 * 60 * 1000,
+          },
         },
       },
       init: {
@@ -78,15 +118,6 @@ export async function ipfsConfig(
       },
       contentRouting: [contentRouting],
       peerRouting: [peerRouting],
-      metrics: {
-        enabled: false,
-      },
-      peerStore: {
-        persistence: true,
-      },
-      connectionManager: {
-        autoDial: true,
-      },
     },
     config.ipfs
   );

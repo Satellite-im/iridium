@@ -127,6 +127,7 @@ export type IridiumPubsubEvent<B = IridiumPayload> = IridiumMessage & {
 
 export type IridiumPeerMessage<T = IridiumDocument | string> =
   IridiumMessage & {
+    did: string;
     topic: string;
     payload: T;
   };
@@ -142,7 +143,7 @@ export type IridiumConfig = {
   version?: string;
   followedPeers?: string[];
   syncNodes?: IridiumSyncNodeConfig[];
-  ipfs?: IPFSConfig;
+  ipfs?: any;
   libp2p?: RecursivePartial<Libp2pInit>;
 };
 
