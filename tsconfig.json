@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
-    "rootDir": ".",
-    "target": "es2020",
-    "module": "es2020",
+    "rootDir": "./src",
+    "declaration": true,
+    "target": "esnext",
+    "module": "esnext",
     "moduleResolution": "node",
     "types": ["node"],
     "noResolve": false,
@@ -18,8 +19,10 @@
     "noFallthroughCasesInSwitch": true,
     "outDir": "./dist"
   },
-  "include": ["./src/**/*", "./jest.config.ts", "./test/**/*"],
+  "include": ["./src/**/*"],
   "exclude": [
+    "./src/modules/**/*",
+    "./example/**/*",
     "./dist/**/*",
     "./coverage/**/*",
     "./node_modules/**/*",

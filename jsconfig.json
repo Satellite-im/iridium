@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {
+      "ipfs-core": ["./src/modules/ipfs-core/ipfs-core.js"]
+    }
+  }
+}

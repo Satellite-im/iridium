@@ -1,62 +1,126 @@
-import merge from 'merge';
 import { createFromPrivKey } from '@libp2p/peer-id-factory';
-import { create } from 'ipfs-core';
-import type { IPFS } from 'ipfs-core';
-import { keys } from '@libp2p/crypto';
-import * as dagJose from 'dag-jose';
-import { IridiumConfig } from './iridium';
+import type { KeyType, PrivateKey } from '@libp2p/interfaces/src/keys';
+import { create, Options } from 'ipfs-core';
+import type { PeerId } from 'ipfs-core/ipns';
+import * as ipfsHttpClient from 'ipfs-http-client';
+import { DelegatedContentRouting } from '@libp2p/delegated-content-routing';
+import { DelegatedPeerRouting } from '@libp2p/delegated-peer-routing';
+import { WebSockets } from '@libp2p/websockets';
+import * as filters from '@libp2p/websockets/filters';
+import { MemoryDatastore } from 'datastore-core';
+import type { IridiumConfig } from './types';
 
-export async function ipfsNodeFromSeed(
-  seed: Uint8Array,
+export async function ipfsNodeFromKey(
+  key: PrivateKey,
   config: IridiumConfig = {}
-): Promise<{ ipfs: IPFS; peerId: string }> {
-  const key = await keys.supportedKeys.ed25519.generateKeyPairFromSeed(seed);
+): Promise<{ ipfs: any; peerId: PeerId }> {
   const peerId = await createFromPrivKey(key);
+  const conf = await ipfsConfig(peerId, config);
   return {
-    ipfs: await create(ipfsConfig(peerId, config)),
-    peerId: peerId.toString(),
+    ipfs: await create(conf),
+    peerId,
   };
 }
 
-export function ipfsConfig(peerId: any, config: IridiumConfig = {}) {
-  return merge(
+export async function ipfsConfig(
+  peerId: PeerId,
+  config: IridiumConfig = {}
+): Promise<Options> {
+  const contentRouting = new DelegatedContentRouting(
+    ipfsHttpClient.create({
+      protocol: 'https',
+      port: 443,
+      host: 'satellite.infura-ipfs.io',
+    })
+  );
+
+  const peerRouting = new DelegatedPeerRouting(
+    ipfsHttpClient.create({
+      protocol: 'https',
+      port: 443,
+      host: 'satellite.infura-ipfs.io',
+    })
+  );
+
+  const localRelay =
+    process.env.IRIDIUM_LOCAL_RELAY ||
+    process.env.NUXT_ENV_IRIDIUM_LOCAL_RELAY ||
+    process.env.VITE_ENV_IRIDIUM_LOCAL_RELAY;
+  if (localRelay) {
+    console.info(`Using local relay peer: ${localRelay}`);
+  }
+  const conf = Object.assign(
+    {},
     {
-      repo: `${config.repo || 'iridium'}/${
-        config.version || 'v1.0.0'
-      }/${peerId.toString()}`,
+      repo: 'iridium',
+      repoAutoMigrate: false,
+      relay: { enabled: true, hop: { enabled: true, active: true } },
       config: {
         Addresses: {
-          Swarm: [],
+          API: '/dns4/ipfs.infura.io/tcp/5001/https',
+          Gateway: '/dns4/satellite.infura-ipfs.io/tcp/443/https',
+          RemotePinning: ['/dns4/satellite.infura-ipfs.io/tcp/443/https'],
+          Swarm: [
+            '/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star',
+            '/ip4/127.0.0.1/tcp/9090/ws/p2p-webrtc-star',
+          ],
         },
-        Discovery: {
-          MDNS: {
-            Enabled: true,
-            Interval: 0.1,
-          },
-          webRTCStar: {
-            Enabled: true,
-          },
-        },
-        Pubsub: {
-          Enabled: true,
-        },
-        Swarm: {
-          DisableRelay: false,
-          EnableRelayHop: true,
-        },
+        Bootstrap: [
+          '/ip4/127.0.0.1/tcp/15003/ws/p2p/QmekhznL3jS9HgHViLkQ3VWY6XmgierxHrUL4JXLFqgAap',
+          '/ip4/127.0.0.1/tcp/8000/p2p/QmekhznL3jS9HgHViLkQ3VWY6XmgierxHrUL4JXLFqgAap',
+          '/ip4/127.0.0.1/tcp/9090/ws/p2p-webrtc-star',
+        ],
       },
-      relay: {
-        enabled: true,
-        hop: {
+      libp2p: {
+        peerId,
+        // datastore: new MemoryDatastore(),
+        peerRouting: {
+          refreshManager: {
+            enabled: true,
+            interval: 6e5,
+            bootDelay: 10e3,
+          },
+        },
+        identify: {
+          protocolPrefix: 'iridium',
+        },
+        ping: {
+          protocolPrefix: 'iridium',
+        },
+        transports: [
+          new WebSockets({
+            filter: filters.all,
+          }),
+        ],
+        peerStore: {
+          persistence: true,
+          threshold: 5,
+        },
+        relay: {
           enabled: true,
-          active: true,
+          hop: {
+            enabled: true,
+            active: true,
+          },
+          advertise: {
+            bootDelay: 60 * 1000,
+            enabled: true,
+            ttl: 30 * 60 * 1000,
+          },
         },
       },
       init: {
+        algorithm: 'ed25519' as KeyType,
+        profiles: ['default-power'],
         privateKey: peerId,
-        algorithm: 'ed25519',
+        allowNew: true,
+        emptyRepo: true,
       },
+      contentRouting: [contentRouting],
+      peerRouting: [peerRouting],
     },
     config.ipfs
   );
+
+  return conf;
 }

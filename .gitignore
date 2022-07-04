@@ -1,5 +1,12 @@
 node_modules/
 iridium/
+example/iridium/
 coverage/
 dist/
 sandbox.ts
+src/modules/ipfs-core/
+.pnpm-debug.log
+.DS_Store
+.env
+peerid.json
+example/**/iridium*/

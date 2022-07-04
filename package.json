@@ -4,7 +4,9 @@
   "version": "0.1.3",
   "license": "MIT",
   "main": "dist/index.js",
-  "typings": "dist/index.d.ts",
+  "module": "dist/index.js",
+  "browser": "dist/index.browser.js",
+  "types": "dist/index.d.ts",
   "files": [
     "dist",
     "src"
@@ -12,9 +14,36 @@
   "engines": {
     "node": ">=10"
   },
+  "browserslist": {
+    "production": [
+      "chrome >= 67",
+      "edge >= 79",
+      "firefox >= 68",
+      "opera >= 54",
+      "safari >= 14"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
   "type": "module",
   "scripts": {
-    "build": "tsup",
+    "build:node": "tsc",
+    "build:browser": "rollup -c rollup.config.js",
+    "build:ipfs": "esbuild ./node_modules/ipfs-core --bundle --format=esm --sourcemap --main-fields=browser,module,main --inject:./src/modules/globals.js --define:globalThis.process.env.NODE_ENV='\"production\"' --splitting --outdir=./src/modules/ipfs-core",
+    "build": "concurrently \"pnpm build:ipfs\" \"pnpm build:browser\" \"pnpm build:node\"",
+    "watch:node": "pnpm build:node --watch",
+    "watch:browser": "pnpm build:browser --watch",
+    "watch:ipfs": "pnpm build:ipfs --watch",
+    "watch": "concurrently \"pnpm watch:ipfs\" \"pnpm watch:browser\" \"pnpm watch:node\"",
+    "bootstrap:init": "pnpm peer-id --type=ed25519 > peerid.json && echo \"IRIDIUM_LOCAL_RELAY=$(cat peerid.json | jq .id)\" > .env",
+    "bootstrap": "concurrently \"libp2p-relay-server --peerId ./peerid.json\" \"webrtc-star\"",
+    "example:user-a": "cd example/user-a && node --no-warnings --experimental-specifier-resolution=node index.js",
+    "example:user-b": "cd example/user-b && node --no-warnings --experimental-specifier-resolution=node index.js",
+    "example:sync": "cd example/sync &&  node --no-warnings --experimental-specifier-resolution=node index.js",
+    "example": "node --no-warnings --experimental-specifier-resolution=node",
     "test": "ava",
     "lint": "eslint",
     "prepare": "pnpm build",
@@ -41,7 +70,6 @@
     "singleQuote": true,
     "trailingComma": "es5"
   },
-  "module": "dist/iridium.esm.js",
   "size-limit": [
     {
       "path": "dist/iridium.cjs.production.min.js",
@@ -53,40 +81,75 @@
     }
   ],
   "dependencies": {
-    "@libp2p/crypto": "^0.22.14",
+    "@chainsafe/libp2p-noise": "^7.0.1",
+    "@ethersproject/bignumber": "^5.6.2",
+    "@libp2p/crypto": "^1.0.0",
+    "@libp2p/delegated-content-routing": "^1.0.5",
+    "@libp2p/delegated-peer-routing": "^1.0.5",
     "@libp2p/peer-id": "^1.1.10",
     "@libp2p/peer-id-factory": "^1.0.11",
+    "@libp2p/pubsub": "^3.0.3",
+    "@libp2p/websockets": "^3.0.0",
     "@noble/ed25519": "^1.6.0",
+    "@rollup/plugin-alias": "^3.1.9",
+    "@stablelib/ed25519": "^1.0.2",
     "@types/lodash.set": "^4.3.7",
     "blockcodec-to-ipld-format": "^2.0.0",
     "dag-jose": "^2.0.0",
     "dag-jose-utils": "^2.0.0",
-    "did-jwt": "^6.1.0",
+    "datastore-core": "^7.0.1",
+    "did-jwt": "^6.1.2",
     "dids": "^3.2.0",
-    "events": "^3.3.0",
-    "ipfs-core": "^0.15.1",
+    "fast-json-stable-stringify": "^2.1.0",
+    "ipfs-core": "^0.15.4",
+    "ipfs-http-client": "^57.0.1",
     "key-did-provider-ed25519": "^2.0.0",
     "key-did-resolver": "^2.0.4",
+    "libp2p": "^0.37.3",
     "lodash.get": "^4.4.2",
     "lodash.set": "^4.3.2",
     "merge": "^2.1.1",
-    "multiformats": "^9.6.3"
+    "multiformats": "^9.6.3",
+    "p-retry": "^5.1.1",
+    "rpc-utils": "^0.6.2",
+    "string-argv": "^0.3.1",
+    "uint8arrays": "^3.0.0"
   },
   "devDependencies": {
     "@ava/typescript": "^3.0.1",
+    "@libp2p/interfaces": "^2.0.3",
+    "@libp2p/webrtc-star-signalling-server": "^1.0.5",
+    "@rollup/plugin-commonjs": "^22.0.0",
+    "@rollup/plugin-json": "^4.1.0",
+    "@rollup/plugin-node-resolve": "^13.3.0",
     "@size-limit/preset-small-lib": "^7.0.8",
     "@types/lodash.get": "^4.4.7",
+    "@types/minimist": "^1.2.2",
     "@types/node": "^17.0.40",
     "ava": "^4.3.0",
+    "buffer": "^6.0.3",
+    "concurrently": "^7.2.1",
+    "dotenv": "^16.0.1",
+    "esbuild": "^0.14.43",
     "husky": "^8.0.1",
+    "ipfs-repo": "^14.0.1",
+    "minimist": "^1.2.6",
+    "peer-id": "^0.16.0",
+    "peer-id-bin": "^0.0.2",
+    "prettier": "^2.6.2",
+    "process": "^0.11.10",
+    "rollup": "^2.75.6",
+    "rollup-plugin-esbuild": "^4.9.1",
     "size-limit": "^7.0.8",
     "ts-lib": "^0.0.5",
     "ts-node": "^10.8.1",
     "tslib": "^2.4.0",
     "tsup": "^6.1.0",
-    "typescript": "^4.7.3"
+    "typescript": "^4.7.3",
+    "util": "^0.12.4"
   },
   "volta": {
-    "node": "16.15.1"
+    "node": "18.3.0",
+    "yarn": "1.22.19"
   }
 }
