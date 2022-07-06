@@ -925,9 +925,12 @@ export default class Iridium extends Emitter<
    * Read from the root document on the IPNS record associated with our PeerId
    * @returns
    */
-  async get(path = '/', config: IridiumGetOptions = DEFAULT_GET_OPTIONS) {
+  async get<T = IridiumDocument>(
+    path = '/',
+    config: IridiumGetOptions = DEFAULT_GET_OPTIONS
+  ): Promise<T> {
     if (this._cache && this._cid && !config.resolve?.nocache) {
-      if (path === '/') return this._cache;
+      if (path === '/') return this._cache as T;
       return get(this._cache, convertPath(path));
     }
 
@@ -979,14 +982,14 @@ export default class Iridium extends Emitter<
     if (path === '/') {
       this._cache = _root;
       this._cid = _rootCID;
-      return this._cache;
+      return this._cache as T;
     }
 
     if (this._cache) {
       set(this._cache, convertPath(path), _root);
     }
 
-    return _root;
+    return _root as T;
   }
 
   /**
