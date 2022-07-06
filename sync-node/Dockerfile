@@ -46,5 +46,5 @@ WORKDIR /app
 COPY .npmrc package.json pnpm-lock.yaml peerid.json rollup.config.js tsconfig.json tsconfig.browser.json /app/
 RUN chown -R node:node /app/
 
-USER node
+# USER node
 CMD ["bash"]
