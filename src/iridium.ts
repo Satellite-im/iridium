@@ -357,6 +357,15 @@ export default class Iridium extends Emitter<
       return;
     }
     this._followedPeers.push(peerId);
+    if (
+      (await this.ipfs.swarm.peers()).find((p) => p.peer.toString() === peerId)
+    ) {
+      const pid = await peerIdFromString(peerId);
+      if (!pid.publicKey) {
+        return;
+      }
+      await this.handlePeerConnection(peerId, pid.publicKey);
+    }
   }
 
   async addSyncNode(node: IridiumSyncNodeConfig) {
@@ -508,7 +517,13 @@ export default class Iridium extends Emitter<
   }
 
   async onPeerConnect(event: any) {
-    const remotePeerId = event.detail.remotePeer.toString();
+    return this.handlePeerConnection(
+      event.detail.remotePeer.toString(),
+      event.detail.remotePeer.publicKey
+    );
+  }
+
+  async handlePeerConnection(remotePeerId: string, publicKey: Uint8Array) {
     if (this.knownPeerIds.includes(remotePeerId)) {
       this.logger.debug(
         'iridium/onPeerConnect',
@@ -525,7 +540,7 @@ export default class Iridium extends Emitter<
       const isSyncNode = this._syncNodes
         .map((n) => n.peerId)
         .includes(remotePeerId);
-      const did = Iridium.peerIdToDID(event.detail.remotePeer);
+      const did = Iridium.peerIdToDID(remotePeerId);
 
       if (isSyncNode) {
         this.logger.info(
@@ -557,10 +572,10 @@ export default class Iridium extends Emitter<
       }
       const sharedSecret = await getSharedSecret(
         this._peerId.privateKey.slice(4, 36),
-        event.detail.remotePeer.publicKey.slice(4, 36)
+        publicKey.slice(4, 36)
       );
-      const publicKey = await getPublicKey(sharedSecret);
-      const channel = `peer/${base58btc.encode(publicKey)}`;
+      const pubKey = await getPublicKey(sharedSecret);
+      const channel = `peer/${base58btc.encode(pubKey)}`;
       this._peers[remotePeerId] = {
         id: remotePeerId,
         did,
@@ -668,6 +683,10 @@ export default class Iridium extends Emitter<
       topic,
       event,
     });
+
+    if (payload.type) {
+      this.emit(payload.type, event);
+    }
     this.emit(topic, event);
   }
 
