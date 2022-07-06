@@ -32,8 +32,7 @@
   "scripts": {
     "build:node": "tsc",
     "build:browser": "rollup -c rollup.config.js",
-    "build:ipfs": "esbuild ./node_modules/ipfs-core --bundle --format=esm --sourcemap --main-fields=browser,module,main --inject:./src/modules/globals.js --define:globalThis.process.env.NODE_ENV='\"production\"' --splitting --outdir=./src/modules/ipfs-core",
-    "build": "concurrently \"pnpm build:ipfs\" \"pnpm build:browser\" \"pnpm build:node\"",
+    "build": "pnpm build:browser && pnpm build:node",
     "watch:node": "pnpm build:node --watch",
     "watch:browser": "pnpm build:browser --watch",
     "watch:ipfs": "pnpm build:ipfs --watch",
@@ -94,7 +93,6 @@
     "@rollup/plugin-alias": "^3.1.9",
     "@stablelib/ed25519": "^1.0.2",
     "@types/lodash.set": "^4.3.7",
-    "blockcodec-to-ipld-format": "^2.0.0",
     "dag-jose": "^2.0.0",
     "dag-jose-utils": "^2.0.0",
     "datastore-core": "^7.0.1",
@@ -149,7 +147,6 @@
     "util": "^0.12.4"
   },
   "volta": {
-    "node": "18.3.0",
-    "yarn": "1.22.19"
+    "node": "18.3.0"
   }
 }
