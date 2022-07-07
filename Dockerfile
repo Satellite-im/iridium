@@ -1,3 +1,4 @@
+# Build Iridium
 FROM node:current-buster
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -9,13 +10,6 @@ ENV PNPM_HOME /root/.pnpm
 ENV NODE_ENV development
 ENV NODE_LOG_LEVEL warn
 
-# add pnpm to PATH
-ENV PATH $PNPM_HOME:$PATH
-
-EXPOSE 4002
-EXPOSE 4003
-EXPOSE 4004
-
 SHELL ["/bin/bash", "-c"]
 
 # Install deps
@@ -24,9 +18,26 @@ RUN apt-get update \
   && apt-get install -y \
     git build-essential curl \
     certbot python3-certbot-nginx \
-    ca-certificates nodejs libc6-dev libssl-dev
+    ca-certificates libc6-dev libssl-dev
 
+EXPOSE 4002
+EXPOSE 4003
+EXPOSE 4004
+
+# add pnpm to PATH
+ENV PATH $PNPM_HOME:$PATH
 RUN corepack enable
+
+# Build Iridium
+RUN mkdir -p /app
+COPY src app/src
+COPY .npmrc package.json pnpm-lock.yaml peerid.json rollup.config.js /app/
+COPY tsconfig.json tsconfig.browser.json /app/
+COPY example /app/example
+WORKDIR /app
+
+RUN pnpm i
+RUN pnpm build:node
 
 # Set up nginx reverse proxy
 WORKDIR /etc/nginx/
@@ -38,13 +49,12 @@ COPY ./sync-node/setup-ssl.sh /root/setup-ssl.sh
 RUN chmod +x /root/setup-ssl.sh
 RUN /root/setup-ssl.sh
 
-# Switch to the node user for installation
-RUN mkdir -p /app/node_modules
-RUN mkdir /app/dist/
+# Setup relay server
 RUN pnpm i -g libp2p-relay-server
-WORKDIR /app
-COPY .npmrc package.json pnpm-lock.yaml peerid.json rollup.config.js tsconfig.json tsconfig.browser.json /app/
-RUN chown -R node:node /app/
 
-# USER node
-CMD ["bash"]
+WORKDIR /app
+
+EXPOSE 8080
+EXPOSE 443
+
+CMD ["pnpm", "concurrently", "pnpm bootstrap", "pnpm example:sync"]

@@ -3,22 +3,14 @@ services:
   sync-node:
     build:
       context: .
-      dockerfile: ./sync-node/Dockerfile
+      dockerfile: ./Dockerfile
     working_dir: /app
     environment:
       # - NODE_ENV=production
       - NODE_ENV_IRIDIUM_SEED="sync-node 1"
       - APP_HOSTNAME="sync.satellite.dev"
     volumes:
-      - ./src:/app/src
-      - ./example:/app/example
       - ./sync-node/data:/app/iridium
     ports:
       - '8080:8080'
       - '443:443'
-    entrypoint: ["/bin/sh","-c"]
-    command:
-    - |
-       pnpm i
-       pnpm build:node
-       pnpm concurrently "pnpm bootstrap" "pnpm example:sync"
