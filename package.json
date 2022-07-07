@@ -37,7 +37,7 @@
     "watch:browser": "pnpm build:browser --watch",
     "watch:ipfs": "pnpm build:ipfs --watch",
     "watch": "concurrently \"pnpm watch:ipfs\" \"pnpm watch:browser\" \"pnpm watch:node\"",
-    "bootstrap:init": "pnpm peer-id --type=ed25519 > peerid.json && echo \"IRIDIUM_LOCAL_RELAY=$(cat peerid.json | jq .id)\" > .env",
+    "bootstrap:init": "pnpm peer-id --type=ed25519 > peerid.json && echo \"IRIDIUM_LOCAL_RELAY=$(cat peerid.json | jq .id)\" > .env && echo \"PEERID=$(cat peerid.json)\" >> .env",
     "bootstrap": "concurrently \"libp2p-relay-server --peerId ./peerid.json\" \"webrtc-star\"",
     "example:user-a": "cd example/user-a && node --no-warnings --experimental-specifier-resolution=node index.js",
     "example:user-b": "cd example/user-b && node --no-warnings --experimental-specifier-resolution=node index.js",

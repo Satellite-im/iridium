@@ -31,7 +31,7 @@ RUN corepack enable
 # Build Iridium
 RUN mkdir -p /app
 COPY src app/src
-COPY .npmrc package.json pnpm-lock.yaml peerid.json rollup.config.js /app/
+COPY .npmrc package.json pnpm-lock.yaml rollup.config.js /app/
 COPY tsconfig.json tsconfig.browser.json /app/
 COPY example /app/example
 WORKDIR /app
@@ -57,4 +57,6 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 443
 
-CMD ["pnpm", "concurrently", "pnpm bootstrap", "pnpm example:sync"]
+COPY ./sync-node/start.sh /app/
+
+CMD [ "sh", "./start.sh" ]
