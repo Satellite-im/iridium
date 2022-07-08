@@ -11,14 +11,6 @@ export default {
     format: 'es',
   },
   plugins: [
-    alias({
-      entries: [
-        {
-          find: 'ipfs-core',
-          replacement: './src/modules/ipfs-core/ipfs-core.js',
-        },
-      ],
-    }),
     resolve({ browser: true, preferBuiltins: false }),
     json(),
     commonjs({
