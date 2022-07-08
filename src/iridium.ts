@@ -238,13 +238,7 @@ export default class Iridium extends Emitter<
     // kick out all peers because the peerstore can't be trusted
     const peers = await this.ipfs.swarm.peers();
     for (const peer of peers) {
-      try {
-        await this.ipfs.swarm.disconnect(peer.peer);
-        await this.ipfs.libp2p.pubsub.removePeer(peer.peer);
-        await this.ipfs.libp2p.peerStore.delete(peer.peer);
-        await this.ipfs.libp2p.addressBook.removePeer(peer.peer);
-        await this.ipfs.libp2p.connectionManager.removePeer(peer.peer);
-      } catch (_) {}
+      await this.cleanPeerData(peer.peer);
     }
 
     const addresses = await this.ipfs.swarm.localAddrs();
@@ -281,17 +275,12 @@ export default class Iridium extends Emitter<
       this.logger.info('iridium/stop', 'disconnecting from peer', {
         peer: peer.peer,
       });
-      try {
-        await this.ipfs.swarm.disconnect(peer.peer);
-        await this.ipfs.libp2p.pubsub.removePeer(peer.peer);
-        await this.ipfs.libp2p.peerStore.delete(peer.peer);
-        await this.ipfs.libp2p.addressBook.removePeer(peer.peer);
-        await this.ipfs.libp2p.connectionManager.removePeer(peer.peer);
-      } catch (_) {}
+      await this.cleanPeerData(peer.peer);
     }
 
     const pubsub = this.ipfs.libp2p.pubsub;
     console.info('stopping pubsub', pubsub);
+    await pubsub.flush();
     await pubsub.stop();
 
     Object.values(this._timers).forEach((timer) => {
@@ -311,6 +300,12 @@ export default class Iridium extends Emitter<
 
   getPeer(peerId: string) {
     return this._peers[peerId];
+  }
+
+  async cleanPeerData(peerId: PeerId) {
+    await this.ipfs.swarm.disconnect(peerId);
+    await this.ipfs.libp2p.pubsub.removePeer(peerId);
+    await this.ipfs.libp2p.peerStore.delete(peerId);
   }
 
   /**
@@ -449,8 +444,6 @@ export default class Iridium extends Emitter<
       'peer:disconnect',
       async (event: any) => {
         const peerId = event.detail.remotePeer.toString();
-        await this.ipfs.libp2p.pubsub.removePeer(event.detail.remotePeer);
-        await this.ipfs.libp2p.peerStore.delete(event.detail.remotePeer);
         if (this._peers[peerId]) {
           this.logger.info('iridium/listeners', `peer disconnected: ${peerId}`);
           await this.ipfs.pubsub.unsubscribe(
@@ -458,17 +451,7 @@ export default class Iridium extends Emitter<
             undefined,
             {}
           );
-          try {
-            await this.ipfs.swarm.disconnect(event.detail.remotePeer);
-            await this.ipfs.libp2p.pubsub.removePeer(event.detail.remotePeer);
-            await this.ipfs.libp2p.peerStore.delete(event.detail.remotePeer);
-            await this.ipfs.libp2p.addressBook.removePeer(
-              event.detail.remotePeer
-            );
-            await this.ipfs.libp2p.connectionManager.removePeer(
-              event.detail.remotePeer
-            );
-          } catch (_) {}
+          await this.cleanPeerData(peerId);
           delete this._peers[peerId];
         }
       }

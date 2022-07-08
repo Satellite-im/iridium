@@ -1,0 +1,17 @@
+name: 'iridium'
+services:
+  sync-node:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    working_dir: /app
+    environment:
+      # - NODE_ENV=production
+      - NODE_ENV_IRIDIUM_SEED="sync-node 1"
+      - APP_HOSTNAME="sync.satellite.dev"
+      - PEERID=${PEERID}
+    volumes:
+      - ./sync-node/data:/app/iridium
+    ports:
+      - '8080:8080'
+      - '443:443'
