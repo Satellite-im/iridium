@@ -1,5 +1,5 @@
-import Iridium from '../dist/index.js';
-import SyncNode from '../dist/sync.js';
+import Iridium from '../dist/index.js'
+import SyncNode from '../dist/sync.js'
 
 const client = await Iridium.fromSeedString('sync node a seed', {
   config: {
@@ -11,7 +11,7 @@ const client = await Iridium.fromSeedString('sync node a seed', {
       },
     },
   },
-});
+})
 
-const node = new SyncNode(client);
-await node.start();
+const node = new SyncNode(client)
+await node.start()

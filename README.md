@@ -83,7 +83,7 @@ const client = await Iridium.fromSeedString('user a seed', {
       },
     },
   },
-});
+})
 ```
 
 ## Direct Peer Communication
@@ -96,11 +96,11 @@ await iridium.send(
     displayName,
     profilePicture,
   },
-  { encrypt: true }
-);
+  { encrypt: true },
+)
 
 iridium.on('message', ({ from, payload }) => {
-  const { type } = payload;
+  const { type } = payload
   if (type === 'friend:request') {
     /* ... */
   } else if (type === 'signed:message') {
@@ -108,29 +108,29 @@ iridium.on('message', ({ from, payload }) => {
   } else if (type === 'secret:message') {
     /* ... */
   }
-});
+})
 ```
 
 ## Pubsub
 
 ```js
 // user-b
-iridium.followPeer(userAPeerId);
+iridium.followPeer(userAPeerId)
 iridium.on('peer:channel_name', ({ from, payload }) => {
   if (from === userAPeerId) {
     // do a thing
   }
-});
+})
 
 // user-a
-await iridium.broadcast('channel_name', payload);
+await iridium.broadcast('channel_name', payload)
 ```
 
 ## Managing User Documents
 
 ```js
 // fetch the root level IPNS document
-const userData = await iridium.get('/');
+const userData = await iridium.get('/')
 await iridium.set('/profile', {
   name: 'foo bar',
   friends: [
@@ -139,18 +139,18 @@ await iridium.set('/profile', {
       name: 'bar baz',
     },
   ],
-});
-const friend = await iridium.get('/profile/friends/0');
+})
+const friend = await iridium.get('/profile/friends/0')
 await iridium.set('/profile/friends/0', {
   ...friend,
   profilePicture,
-});
+})
 ```
 
 ## Managing Other Documents
 
 ```js
 // config can include `encrypt`, `sign`, `dag` options
-const cid = await iridium.store(document, arrayOfTargetDIDs, config);
-const doc = await iridium.load(cid); // throws if signature invalid
+const cid = await iridium.store(document, arrayOfTargetDIDs, config)
+const doc = await iridium.load(cid) // throws if signature invalid
 ```

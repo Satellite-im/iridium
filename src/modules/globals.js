@@ -1,5 +1,5 @@
-export const Buffer = require('buffer').Buffer;
-export const process = require('process/browser');
+export const Buffer = require('buffer').Buffer
+export const process = require('process/browser')
 export const global =
   typeof global !== 'undefined'
     ? global
@@ -9,7 +9,7 @@ export const global =
     ? self
     : typeof window !== 'undefined'
     ? window
-    : {};
+    : {}
 
 if (globalThis && globalThis.process && globalThis.process.env)
-  globalThis.process.env.LIBP2P_FORCE_PNET = false;
+  globalThis.process.env.LIBP2P_FORCE_PNET = false

@@ -1,14 +1,14 @@
-import dotenv from 'dotenv';
-import * as readline from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
+import dotenv from 'dotenv'
+import * as readline from 'node:readline/promises'
+import { stdin as input, stdout as output } from 'node:process'
 dotenv.config({
   path: '../../.env',
-});
+})
 
-const rl = readline.createInterface({ input, output });
+const rl = readline.createInterface({ input, output })
 
-import Iridium from '../../dist/index.js';
-import IridiumTerminal from '../../dist/readline-adapter';
+import Iridium from '../../dist/index.js'
+import IridiumTerminal from '../../dist/readline-adapter'
 
 const client = await Iridium.fromSeedString('user b seed', {
   config: {
@@ -22,16 +22,16 @@ const client = await Iridium.fromSeedString('user b seed', {
       },
     },
   },
-});
+})
 
-const terminal = new IridiumTerminal(client);
-await client.start();
-await terminal.exec('whoami');
-await terminal.exec('pins');
+const terminal = new IridiumTerminal(client)
+await client.start()
+await terminal.exec('whoami')
+await terminal.exec('pins')
 
 while (true) {
-  const line = await rl.question('> ');
+  const line = await rl.question('> ')
   await terminal.exec(line).catch((error) => {
-    console.error(error);
-  });
+    console.error(error)
+  })
 }
