@@ -1,53 +1,53 @@
-import { createFromPrivKey } from '@libp2p/peer-id-factory';
-import type { KeyType, PrivateKey } from '@libp2p/interfaces/src/keys';
-import { create, Options } from 'ipfs-core';
-import type { PeerId } from 'ipfs-core/ipns';
-import * as ipfsHttpClient from 'ipfs-http-client';
-import { DelegatedContentRouting } from '@libp2p/delegated-content-routing';
-import { DelegatedPeerRouting } from '@libp2p/delegated-peer-routing';
-import { WebSockets } from '@libp2p/websockets';
-import * as filters from '@libp2p/websockets/filters';
-import { MemoryDatastore } from 'datastore-core';
-import type { IridiumConfig } from './types';
+import { createFromPrivKey } from '@libp2p/peer-id-factory'
+import type { KeyType, PrivateKey } from '@libp2p/interfaces/src/keys'
+import { create, Options } from 'ipfs-core'
+import type { PeerId } from 'ipfs-core/ipns'
+import * as ipfsHttpClient from 'ipfs-http-client'
+import { DelegatedContentRouting } from '@libp2p/delegated-content-routing'
+import { DelegatedPeerRouting } from '@libp2p/delegated-peer-routing'
+import { WebSockets } from '@libp2p/websockets'
+import * as filters from '@libp2p/websockets/filters'
+import { MemoryDatastore } from 'datastore-core'
+import type { IridiumConfig } from './types'
 
 export async function ipfsNodeFromKey(
   key: PrivateKey,
-  config: IridiumConfig = {}
+  config: IridiumConfig = {},
 ): Promise<{ ipfs: any; peerId: PeerId }> {
-  const peerId = await createFromPrivKey(key);
-  const conf = await ipfsConfig(peerId, config);
+  const peerId = await createFromPrivKey(key)
+  const conf = await ipfsConfig(peerId, config)
   return {
     ipfs: await create(conf),
     peerId,
-  };
+  }
 }
 
 export async function ipfsConfig(
   peerId: PeerId,
-  config: IridiumConfig = {}
+  config: IridiumConfig = {},
 ): Promise<Options> {
   const contentRouting = new DelegatedContentRouting(
     ipfsHttpClient.create({
       protocol: 'https',
       port: 443,
       host: 'satellite.infura-ipfs.io',
-    })
-  );
+    }),
+  )
 
   const peerRouting = new DelegatedPeerRouting(
     ipfsHttpClient.create({
       protocol: 'https',
       port: 443,
       host: 'satellite.infura-ipfs.io',
-    })
-  );
+    }),
+  )
 
   const localRelay =
     process.env.IRIDIUM_LOCAL_RELAY ||
     process.env.NUXT_ENV_IRIDIUM_LOCAL_RELAY ||
-    process.env.VITE_ENV_IRIDIUM_LOCAL_RELAY;
+    process.env.VITE_ENV_IRIDIUM_LOCAL_RELAY
   if (localRelay) {
-    console.info(`Using local relay peer: ${localRelay}`);
+    console.info(`Using local relay peer: ${localRelay}`)
   }
   const conf = Object.assign(
     {},
@@ -119,8 +119,8 @@ export async function ipfsConfig(
       contentRouting: [contentRouting],
       peerRouting: [peerRouting],
     },
-    config.ipfs
-  );
+    config.ipfs,
+  )
 
-  return conf;
+  return conf
 }

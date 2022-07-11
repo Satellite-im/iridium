@@ -1,8 +1,8 @@
-import esbuild from 'rollup-plugin-esbuild';
-import json from '@rollup/plugin-json';
-import resolve from '@rollup/plugin-node-resolve';
-import commonjs from '@rollup/plugin-commonjs';
-import alias from '@rollup/plugin-alias';
+import esbuild from 'rollup-plugin-esbuild'
+import json from '@rollup/plugin-json'
+import resolve from '@rollup/plugin-node-resolve'
+import commonjs from '@rollup/plugin-commonjs'
+import alias from '@rollup/plugin-alias'
 
 export default {
   input: 'src/index.ts',
@@ -26,4 +26,4 @@ export default {
       },
     }),
   ],
-};
+}
