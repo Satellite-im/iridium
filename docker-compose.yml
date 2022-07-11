@@ -1,4 +1,4 @@
-name: 'iridium'
+version: "3.3"
 services:
   sync-node:
     build:
