@@ -41,7 +41,10 @@ RUN pnpm build:node
 
 # Set up nginx reverse proxy
 WORKDIR /etc/nginx/
-COPY ./sync-node/nginx.remote.conf ./conf.d/remote.conf
+
+COPY ./sync-node/nginx.sync.conf ./sites-available/sync
+COPY ./sync-node/nginx.relay.conf ./sites-available/relay
+
 COPY ./sync-node/nginx.local.conf ./conf.d/local.conf
 
 # if local dev, generate SSL cert

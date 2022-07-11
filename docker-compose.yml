@@ -7,11 +7,14 @@ services:
     working_dir: /app
     environment:
       # - NODE_ENV=production
-      - NODE_ENV_IRIDIUM_SEED="sync-node 1"
-      - APP_HOSTNAME="sync.satellite.dev"
+      - NODE_ENV_IRIDIUM_SEED=${NODE_ENV_IRIDIUM_SEED}
+      - HOSTNAME=${HOSTNAME}
+      - SYNC_PREFIX=${SYNC_PREFIX}
+      - RELAY_PREFIX=${RELAY_PREFIX}
       - PEERID=${PEERID}
     volumes:
       - ./sync-node/data:/app/iridium
     ports:
       - '8080:8080'
+      - '80:80'
       - '443:443'
