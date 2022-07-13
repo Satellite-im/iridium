@@ -1,6 +1,6 @@
 # Iridium Protocol
 
-Iridium is a loosely defined protocol for peer to peer communication and storage for user application data (profile, friends, messages, files, etc...) leveraging IPFS and dag-jose.
+Iridium is a loosely defined protocol for peer-to-peer communication and storage for user application data (profile, friends, messages, files, etc...) leveraging IPFS and dag-jose.
 
 ## Developing with Iridium
 
