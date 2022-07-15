@@ -1,9 +1,9 @@
 import * as json from 'multiformats/codecs/json';
 import minimist from 'minimist';
 import { parseArgsStringToArgv } from 'string-argv';
-import Iridium from './iridium';
-import type { IridiumDocument } from './types';
-import Emitter from './emitter';
+import Iridium from '../iridium';
+import type { IridiumDocument } from '../types';
+import Emitter from '../core/emitter';
 
 export type IridiumTerminalCommands = {
   [key: string]: (...args: any[]) => any;
@@ -33,7 +33,7 @@ export default class IridiumTerminal extends Emitter<IridiumDocument> {
     });
     this._commands = {
       send: instance.send.bind(instance),
-      broadcast: instance.broadcast.bind(instance),
+      publish: instance.publish.bind(instance),
       load: instance.load.bind(instance),
       get: instance.get.bind(instance),
       set: instance.set.bind(instance),
@@ -44,20 +44,11 @@ export default class IridiumTerminal extends Emitter<IridiumDocument> {
         return;
       },
       whoami: async () => {
-        const { addresses } = await instance.ipfs.id();
+        const addresses = await instance.p2p.listenAddresses();
         return {
-          peerId: instance.peerId,
           did: instance.id,
           addresses: addresses.map((a) => a.toString()),
         };
-      },
-      pins: async () => {
-        const pins = await instance.ipfs.pin.ls();
-        console.info(`Pinned CIDs:`);
-        console.info(`----+----`);
-        for await (const pin of pins) {
-          console.info(`    | ${pin.cid}`);
-        }
       },
       clear: () => {
         console.clear();

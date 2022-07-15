@@ -1,4 +1,3 @@
 export { default as Iridium, default } from './iridium';
-export { default as Emitter, type EmitterCallback } from './emitter';
-export { ipfsNodeFromKey, ipfsConfig } from './ipfs';
+export { createIridiumIPFS } from './adapters/ipfs/create';
 export * from './types';

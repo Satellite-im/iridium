@@ -1,14 +1,12 @@
 import { createFromPrivKey } from '@libp2p/peer-id-factory';
-import type { KeyType, PrivateKey } from '@libp2p/interfaces/src/keys';
+import type { KeyType, PrivateKey } from '@libp2p/interfaces/keys';
 import { create, Options } from 'ipfs-core';
 import type { PeerId } from 'ipfs-core/ipns';
 import * as ipfsHttpClient from 'ipfs-http-client';
 import { DelegatedContentRouting } from '@libp2p/delegated-content-routing';
 import { DelegatedPeerRouting } from '@libp2p/delegated-peer-routing';
-import { WebSockets } from '@libp2p/websockets';
-import * as filters from '@libp2p/websockets/filters';
-import { MemoryDatastore } from 'datastore-core';
-import type { IridiumConfig } from './types';
+import type { IridiumConfig } from '../../types';
+import { IridiumIPFSConfig } from './types';
 
 export async function ipfsNodeFromKey(
   key: PrivateKey,
@@ -24,7 +22,7 @@ export async function ipfsNodeFromKey(
 
 export async function ipfsConfig(
   peerId: PeerId,
-  config: IridiumConfig = {}
+  config: IridiumIPFSConfig = {}
 ): Promise<Options> {
   const contentRouting = new DelegatedContentRouting(
     ipfsHttpClient.create({
@@ -87,14 +85,15 @@ export async function ipfsConfig(
         ping: {
           protocolPrefix: 'iridium',
         },
-        transports: [
-          new WebSockets({
-            filter: filters.all,
-          }),
-        ],
         peerStore: {
-          persistence: true,
-          threshold: 5,
+          addressFilter: (peerId: PeerId) => {
+            return (
+              config.followedPeers?.includes(peerId.toString()) ||
+              config.syncNodes?.some(
+                (node) => node.peerId === peerId.toString()
+              )
+            );
+          },
         },
         relay: {
           enabled: true,

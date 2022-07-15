@@ -1,8 +1,10 @@
 import * as readline from 'node:readline';
 import { stdin as input, stdout as output } from 'node:process';
-import Iridium from './iridium';
-import { IridiumSeedConfig } from './types';
-import IridiumTerminal from './readline-adapter';
+import Iridium from '../iridium';
+import IridiumTerminal from '../helpers/readline-adapter';
+import { createIridiumIPFS, IPFSSeedConfig } from 'src/adapters/ipfs/create';
+import { peerIdToDID } from 'src/adapters/ipfs/utils';
+import { IridiumPeerMessage, IridiumPubsubEvent } from 'src/types';
 
 export type IridiumSyncAgentConfig = {
   peers?: {
@@ -23,7 +25,7 @@ export type IridiumSyncAgentConfig = {
     limit?: number;
     maxSize?: number;
   };
-  server?: IridiumSeedConfig;
+  server?: IPFSSeedConfig;
 };
 
 const localRelay =
@@ -53,10 +55,8 @@ const DEFAULT_CONFIG: IridiumSyncAgentConfig = {
   server: {
     config: {
       ipfs: {
-        config: {
-          Addresses: {
-            Swarm: ['/ip4/127.0.0.1/tcp/4002', '/ip4/127.0.0.1/tcp/4003/ws'],
-          },
+        Addresses: {
+          Swarm: ['/ip4/127.0.0.1/tcp/4002', '/ip4/127.0.0.1/tcp/4003/ws'],
         },
       },
     },
@@ -116,7 +116,7 @@ export default class IridiumSyncAgent {
     seed: string,
     config: IridiumSyncAgentConfig = DEFAULT_CONFIG
   ) {
-    const iridium = await Iridium.fromSeedString(seed, config.server);
+    const iridium = await createIridiumIPFS(seed, config.server);
     const agent = new IridiumSyncAgent(iridium, config);
     await agent.start();
     return agent;
@@ -130,25 +130,25 @@ export default class IridiumSyncAgent {
     console.info('friends announce', message);
   }
 
-  async onSyncMessage(message: any) {
+  async onSyncMessage(message: IridiumPeerMessage) {
     console.info('sync message', message);
     const { from, payload, type } = message;
 
-    if (!['jwe', 'jws'].includes(type)) {
-      console.debug('ignoring unsigned sync message', message);
-      return;
-    }
+    const peerId = from.toString();
+    if (type === 'sync-init') {
+      if (!payload.did) {
+        console.error('sync-init message missing did');
+        return;
+      }
 
-    const remotePeerId = from.toString();
-    const remoteDID = await Iridium.peerIdToDID(from);
-    if (payload.type === 'sync-init') {
-      this._peers[remotePeerId] = {
+      this._peers[peerId] = {
         did: remoteDID,
-        peerId: remotePeerId,
+        peerId,
         seen: Date.now(),
-        pins: payload.data?.pins || [],
+        pins: payload?.pins || [],
       };
       await this.instance.send(
+        remoteDID,
         {
           action: 'sync-init',
           data: {

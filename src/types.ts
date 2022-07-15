@@ -1,13 +1,14 @@
-import { CreateJWEOptions, CreateJWSOptions, DecryptJWEOptions } from 'dids';
+import {
+  CreateJWEOptions,
+  CreateJWSOptions,
+  DecryptJWEOptions,
+  DID,
+} from 'dids';
 import * as json from 'multiformats/codecs/json';
 import { CID } from 'multiformats/cid';
 import type { GeneralJWS } from 'dids';
-import type { PeerId } from 'ipfs-core/ipns';
-import type { IPFSConfig } from 'ipfs-core/dist/src/components/network';
 import { JWE } from 'did-jwt';
-import type { IPFS } from 'ipfs-core';
-import { RecursivePartial } from '@libp2p/interfaces';
-import { Libp2pInit } from 'libp2p';
+import { Multiaddr } from '@multiformats/multiaddr';
 
 export type IridiumLogger = {
   log: (...args: any[]) => void;
@@ -20,6 +21,11 @@ export type IridiumLogger = {
 export type IridiumRequestOptions = {
   timeout?: number;
   signal?: AbortSignal;
+};
+
+export type IridiumSubscribeOptions = IridiumRequestOptions & {
+  waitForSubscriber?: number;
+  handler?: (message: IridiumPubsubMessage) => Promise<void> | void;
 };
 
 export type IridiumResolveOptions = IridiumRequestOptions & {
@@ -56,7 +62,7 @@ export type IridiumWriteOptions = IridiumRequestOptions & {
 };
 
 export type IridiumSendOptions = IridiumWriteOptions & {
-  to: string | string[];
+  sign?: boolean;
   encode?: boolean;
 };
 
@@ -76,24 +82,25 @@ export type IridiumDagPutOptions = IridiumRequestOptions & {
 export type IridiumEncryptOptions = {
   recipients?: string[];
   options?: CreateJWEOptions;
+  dag?: boolean;
 };
 
 export type IridiumPayloadBody = GeneralJWS | JWE | IridiumDocument | string;
 export type IridiumPayloadJWE = {
-  type: 'jwe';
+  encoding: 'jwe';
   body: JWE;
 };
 export type IridiumPayloadJWS = {
-  type: 'jws';
+  encoding: 'jws';
   body: GeneralJWS;
 };
 export type IridiumPayloadJSON = {
-  type: 'json';
+  encoding: 'json';
   body: IridiumDocument;
 };
 export type IridiumPayloadText = {
-  type: 'text';
-  body: string;
+  encoding: 'raw';
+  body: string | Uint8Array;
 };
 export type IridiumPayload =
   | IridiumPayloadJWE
@@ -107,31 +114,15 @@ export type IridiumPayloadEvent<B = IridiumPayload> = {
   payload: B;
 };
 
-export type IridiumMessage = {
-  from: PeerId;
-  to?: string | PeerId | string[];
+export type IridiumMessage<P = IridiumDocument> = {
+  from: IridiumPeerIdentifier;
+  to?: IridiumPeerIdentifier | IridiumPeerIdentifier[];
+  payload: P;
 };
 
-export type IridiumChannelEvent<B = IridiumPayload> = IridiumPayloadEvent<B> & {
-  channel: string;
-  data?: IridiumDocument | string;
-};
-
-export type IridiumErrorEvent = {
-  error: Error;
-  message?: string;
-};
-
-export type IridiumPubsubEvent<B = IridiumPayload> = IridiumMessage & {
+export type IridiumPubsubMessage<P = IridiumDocument> = IridiumMessage<P> & {
   topic: string;
-} & { data: json.ByteView<B> };
-
-export type IridiumPeerMessage<T = IridiumDocument | string> =
-  IridiumMessage & {
-    did: string;
-    topic: string;
-    payload: T;
-  };
+};
 
 export type IridiumSyncNodeConfig = {
   label?: string;
@@ -144,15 +135,6 @@ export type IridiumConfig = {
   version?: string;
   followedPeers?: string[];
   syncNodes?: IridiumSyncNodeConfig[];
-  ipfs?: any;
-  libp2p?: RecursivePartial<Libp2pInit>;
-};
-
-export type IridiumSeedConfig = {
-  config?: IridiumConfig;
-  ipfs?: IPFS;
-  peerId?: PeerId;
-  logger?: IridiumLogger;
 };
 
 export type IridiumDocument = {
@@ -160,11 +142,12 @@ export type IridiumDocument = {
 };
 
 export type IridiumPeer = {
-  id: string;
   did: string;
-  channel: string;
-  meta: any;
-  seen: number;
+  type: 'peer' | 'node';
+  channel?: string;
+  addr?: Multiaddr;
+  meta?: any;
+  seen?: number;
 };
 
 export type IridiumPublishOptions = IridiumRequestOptions & {
@@ -174,3 +157,5 @@ export type IridiumPublishOptions = IridiumRequestOptions & {
   key?: string;
   allowOffline?: boolean;
 };
+
+export type IridiumPeerIdentifier = string | DID;
