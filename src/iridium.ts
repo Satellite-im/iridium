@@ -7,6 +7,7 @@ import { base58btc } from 'multiformats/bases/base58';
 import { CID } from 'multiformats/cid';
 import type { IPFS } from 'ipfs-core';
 import { sha256 } from 'multiformats/hashes/sha2';
+import { base64url } from 'multiformats/bases/base64';
 import set from 'lodash.set';
 import get from 'lodash.get';
 import pRetry from 'p-retry';
@@ -217,8 +218,9 @@ export default class Iridium extends Emitter<
     return sha256.encode(encoded);
   }
 
-  static hash(data: any): string {
-    return sha256.encode(json.encode(data)).toString();
+  static async hash(data: any): Promise<string> {
+    const encoded = await sha256.encode(json.encode(data));
+    return base64url.encode(encoded);
   }
 
   async start() {
