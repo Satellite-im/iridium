@@ -9,8 +9,10 @@ import { encodeDID } from './provider';
  * Create a PeerId from a DID
  * @param did - DID to create PeerId from
  */
-export function DIDToPeerId(did: string | DID): Promise<PeerId> {
-  const multibase = did.toString().substring('did:key:'.length);
+export function DIDToPeerId(did: DID | string): Promise<PeerId> {
+  const multibase = (typeof did === 'string' ? did : did.id).substring(
+    'did:key:'.length
+  );
   const publicKeyBytes = base58btc.decode(multibase);
   const publicKey = keys.supportedKeys.ed25519.unmarshalEd25519PublicKey(
     publicKeyBytes.slice(2)

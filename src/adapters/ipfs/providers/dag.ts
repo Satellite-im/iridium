@@ -1,8 +1,8 @@
 import { CID } from 'multiformats';
 import { GetOptions, PutOptions } from 'ipfs-core-types/dag';
-import type { IridiumDAGProvider } from 'src/core/dag/interface';
-import { IPFSWithLibP2P } from 'src/adapters/ipfs/types';
-import { IridiumLogger } from 'src/types';
+import type { IridiumDAGProvider } from '../../../core/dag/interface';
+import { IPFSWithLibP2P } from '../../../adapters/ipfs/types';
+import { IridiumLogger } from '../../../types';
 
 export const DEFAULT_RESOLVE_OPTIONS = {};
 export const DEFAULT_DAG_GET_OPTIONS = {
@@ -25,15 +25,15 @@ export class IPFSDagProvider<Payload = any>
 {
   constructor(private ipfs: IPFSWithLibP2P, logger: IridiumLogger = console) {}
   async start() {}
-  async get(
+  async get<T = Payload>(
     cid: CID,
     options: GetOptions = DEFAULT_DAG_GET_OPTIONS
-  ): Promise<Payload> {
+  ): Promise<T> {
     const result = await this.ipfs.dag.get(cid, options);
-    return result.value as Payload;
+    return result.value as T;
   }
-  async put(
-    payload: Payload,
+  async put<T = Payload>(
+    payload: T,
     options: PutOptions = DEFAULT_DAG_PUT_OPTIONS
   ): Promise<CID> {
     const result = await this.ipfs.dag.put(payload, options);

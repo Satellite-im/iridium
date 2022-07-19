@@ -1,8 +1,17 @@
-import dotenv from 'dotenv';
-dotenv.config({
-  path: '../../.env',
+import { createIridiumIPFS } from '../../dist/index.js';
+import SyncNode from '../../dist/sync/agent.js';
+
+const client = await createIridiumIPFS('sync node a seed', {
+  config: {
+    ipfs: {
+      config: {
+        Addresses: {
+          Swarm: ['/ip4/127.0.0.1/tcp/4007', '/ip4/127.0.0.1/tcp/4008/ws'],
+        },
+      },
+    },
+  },
 });
 
-import IridiumSyncAgent from '../../dist/sync-agent';
-
-const agent = await IridiumSyncAgent.create('sync node seed');
+const node = new SyncNode(client);
+await node.start();

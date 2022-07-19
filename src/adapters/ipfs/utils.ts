@@ -1,5 +1,6 @@
 import { PeerId } from '@libp2p/interfaces/peer-id';
 import { peerIdFromString } from '@libp2p/peer-id';
+import { publicKeyToDID } from '../../core/identity/did/utils';
 
 /**
  * Create a DID from a peerId string
@@ -11,5 +12,5 @@ export function peerIdToDID(peerId: PeerId | string): string {
     throw new Error('invalid peerId');
   }
 
-  return this.publicKeyToDID(pid.publicKey.slice(4));
+  return publicKeyToDID(pid.publicKey.slice(4));
 }

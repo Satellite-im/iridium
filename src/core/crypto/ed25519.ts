@@ -1,5 +1,5 @@
 import { generateKeyPairFromSeed, KeyPair } from '@stablelib/ed25519';
-import { sha512 } from 'multiformats/hashes/sha2';
+import { sha256 } from 'multiformats/hashes/sha2';
 
 export type Keypair = {
   publicKey: Uint8Array[32];
@@ -9,6 +9,6 @@ export type Keypair = {
 const textEncoder = new TextEncoder();
 
 export async function keypairFromSeed(seed: string): Promise<KeyPair> {
-  const hash = await sha512.encode(textEncoder.encode(seed));
+  const hash = await sha256.encode(textEncoder.encode(seed));
   return generateKeyPairFromSeed(hash);
 }

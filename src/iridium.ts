@@ -14,7 +14,6 @@ import {
   IridiumWriteOptions,
   IridiumGetOptions,
   IridiumSubscribeOptions,
-  IridiumSendOptions,
 } from './types';
 import { IridiumP2PProvider } from './core/p2p/interface';
 import { IridiumDAGProvider } from './core/dag/interface';
@@ -65,6 +64,10 @@ export default class Iridium extends Emitter<
     this.p2p = p2p;
     this.pubsub = pubsub;
     this.logger = logger || console;
+    if (!this.identity.did) {
+      console.info(this.identity);
+      throw new Error('iridium/constructor: DID not provided');
+    }
   }
 
   async start() {
@@ -226,7 +229,7 @@ export default class Iridium extends Emitter<
       return get(this._cache, convertPath(path));
     }
 
-    const _rootCID = await this.identity.getRootCID();
+    const _rootCID = await this.identity.resolve();
     const _root = await this.dag.get(_rootCID, config.load?.dag);
 
     if (path === '/') {
@@ -258,7 +261,7 @@ export default class Iridium extends Emitter<
       next,
       options.store || { encrypt: { recipients: [this.id] } }
     );
-    await this.identity.setRootCID(cid);
+    await this.identity.set(cid);
     this.logger.info('iridium/set', 'stored document', { cid });
     this.emit('changed', {
       path,

@@ -1,5 +1,5 @@
-import type Iridium from 'src/iridium';
-import { IridiumDocument } from 'src/types';
+import type Iridium from '../../iridium';
+import { IridiumDocument } from '../../types';
 
 /**
  * Resolve links in a document and load the linked fragments

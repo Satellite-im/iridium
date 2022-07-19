@@ -1,10 +1,9 @@
-import Emitter from 'src/core/emitter';
-import Iridium from 'src/iridium';
+import Emitter from '../core/emitter';
 import Minisearch, { Options } from 'minisearch';
-import { IridiumNamespace } from 'src/helpers/namespace';
-import { IridiumDocument } from 'src/types';
+import { IridiumNamespace } from '../helpers/namespace';
+import { IridiumDocument } from '../types';
 import { CID } from 'multiformats';
-import { hash } from 'src/core/encoding';
+import { hash } from '../core/encoding';
 
 export type IridiumSchemaFieldType =
   | 'string'
@@ -106,7 +105,6 @@ export class IridiumDBTable extends Emitter {
     this.aggregates = schema.aggregates || {};
     this.rollup = schema.rollup || { count: 10000 };
     this.migrator = schema.migrator?.bind(this);
-    this.hash = hash(this.schema);
     this.metadata = {
       blockIndex: 0,
       recordIndex: 0,
@@ -123,6 +121,7 @@ export class IridiumDBTable extends Emitter {
   }
 
   async init() {
+    this.hash = await hash(this.schema);
     this.metadata = await this.loadMetadata();
     const prevSchema = await this.loadSchema();
     const event = {

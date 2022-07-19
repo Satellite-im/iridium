@@ -1,11 +1,11 @@
 import { DID } from 'dids';
-import Emitter from 'src/core/emitter';
-import type Iridium from 'src/iridium';
+import Emitter from '../../core/emitter';
+import type Iridium from '../../iridium';
 import {
   IridiumDocument,
   IridiumPubsubMessage,
   IridiumWriteOptions,
-} from 'src/types';
+} from '../../types';
 
 export interface IridiumPubsubProvider<Payload = IridiumDocument>
   extends Emitter<IridiumPubsubMessage<Payload>> {

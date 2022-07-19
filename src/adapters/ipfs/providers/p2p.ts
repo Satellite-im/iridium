@@ -2,21 +2,20 @@ import { PeerId } from '@libp2p/interfaces/peer-id';
 import type { ProtocolStream } from '@libp2p/interfaces/connection';
 import { pipe } from 'it-pipe';
 
-import { IridiumP2PProvider } from 'src/core/p2p/interface';
-import { DIDToPeerId } from 'src/core/identity/did/utils';
-import type Iridium from 'src/iridium';
+import { IridiumP2PProvider } from '../../../core/p2p/interface';
+import { DIDToPeerId } from '../../../core/identity/did/utils';
+import type Iridium from '../../../iridium';
 import {
   IridiumLogger,
   IridiumPeerIdentifier,
   IridiumPubsubMessage,
-} from 'src/types';
-import Emitter from 'src/core/emitter';
+} from '../../../types';
+import Emitter from '../../../core/emitter';
 import { IPFSWithLibP2P, IridiumIPFSPeer } from '../types';
 import { peerIdToDID } from '../utils';
 import { Multiaddr } from '@multiformats/multiaddr';
 
 export class IPFSP2PProvider extends Emitter implements IridiumP2PProvider {
-  private _peerId?: PeerId;
   private _dialing: string[] = [];
   private _peers: { [key: string]: IridiumIPFSPeer } = {};
   private _peerIdMap: { [key: string]: string } = {};
@@ -26,6 +25,7 @@ export class IPFSP2PProvider extends Emitter implements IridiumP2PProvider {
 
   constructor(
     public ipfs: IPFSWithLibP2P,
+    private _peerId: PeerId,
     private logger: IridiumLogger = console
   ) {
     super();
@@ -37,7 +37,6 @@ export class IPFSP2PProvider extends Emitter implements IridiumP2PProvider {
 
   async start(iridium: Iridium) {
     this._iridium = iridium;
-    this._peerId = await DIDToPeerId(iridium.did);
 
     this.ipfs.libp2p.connectionManager.addEventListener(
       'peer:connect',
@@ -105,7 +104,11 @@ export class IPFSP2PProvider extends Emitter implements IridiumP2PProvider {
   }
 
   async onPeerDiscover(event: any) {
-    const peerId = event.detail.id.toString();
+    const peerId = event.detail.id;
+    if (!event.detail.id.publicKey) {
+      // ignore peer without public key
+      return;
+    }
     const did = peerIdToDID(peerId);
     this.emit('peer:discovery', {
       peerId,
@@ -116,10 +119,16 @@ export class IPFSP2PProvider extends Emitter implements IridiumP2PProvider {
   async onPeerConnect(event: any) {
     if (!this._iridium) return;
     if (!this._peerId?.privateKey) {
+      this.logger.info('iridium/onPeerConnect', 'no private key', this._peerId);
       throw new Error('no local private key available for secure connection');
     }
+
+    if (!event.detail.remotePeer.publicKey) {
+      // this peer hasn't provided a public key, so we can't connect
+      return;
+    }
     const remotePeerId = event.detail.remotePeer.toString();
-    const remotePeerDID = peerIdToDID(remotePeerId);
+    const remotePeerDID = peerIdToDID(event.detail.remotePeer);
 
     const peer = this.getPeer(remotePeerDID);
     if (peer) {

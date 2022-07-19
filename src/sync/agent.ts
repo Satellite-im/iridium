@@ -1,10 +1,13 @@
 import * as readline from 'node:readline';
 import { stdin as input, stdout as output } from 'node:process';
-import Iridium from '../iridium';
 import IridiumTerminal from '../helpers/readline-adapter';
-import { createIridiumIPFS, IPFSSeedConfig } from 'src/adapters/ipfs/create';
-import { peerIdToDID } from 'src/adapters/ipfs/utils';
-import { IridiumPeerMessage, IridiumPubsubEvent } from 'src/types';
+import {
+  createIridiumIPFS,
+  IPFSSeedConfig,
+  IridiumIPFS,
+} from '../adapters/ipfs/create';
+import { IridiumMessage } from '../types';
+import { DIDToPeerId } from '../core/identity/did/utils';
 
 export type IridiumSyncAgentConfig = {
   peers?: {
@@ -75,7 +78,7 @@ export default class IridiumSyncAgent {
   private _offline: { [key: string]: string[] } = {};
   private _pins: { [key: string]: string[] } = {};
   constructor(
-    private readonly instance: Iridium,
+    private readonly instance: IridiumIPFS,
     private config: IridiumSyncAgentConfig
   ) {
     this.instance.on('peer:connect', this.onPeerConnect.bind(this));
@@ -87,7 +90,6 @@ export default class IridiumSyncAgent {
     const terminal = new IridiumTerminal(this.instance, {});
     await this.instance.start();
     await terminal.exec('whoami');
-    await terminal.exec('pins');
 
     await new Promise((resolve) => {
       setTimeout(resolve, 1000);
@@ -122,105 +124,85 @@ export default class IridiumSyncAgent {
     return agent;
   }
 
-  onPeerConnect({ peerId }: { peerId: string }) {
-    console.info('peer connected', peerId);
+  onPeerConnect({ from }: { from: string }) {
+    console.info('peer connected', from);
   }
 
   onFriendsAnnounce(message: any) {
     console.info('friends announce', message);
   }
 
-  async onSyncMessage(message: IridiumPeerMessage) {
+  async onSyncMessage(message: IridiumMessage) {
     console.info('sync message', message);
-    const { from, payload, type } = message;
+    const { from, payload } = message;
+    const { type } = payload;
 
-    const peerId = from.toString();
+    const did = from.toString();
     if (type === 'sync-init') {
       if (!payload.did) {
         console.error('sync-init message missing did');
         return;
       }
-
-      this._peers[peerId] = {
-        did: remoteDID,
+      const peerId = (await DIDToPeerId(payload.did)).toString();
+      this._peers[did] = {
+        did: from.toString(),
         peerId,
         seen: Date.now(),
         pins: payload?.pins || [],
       };
-      await this.instance.send(
-        remoteDID,
-        {
-          action: 'sync-init',
-          data: {
-            request: payload.request || undefined,
-            success: true,
-          },
+      await this.instance.send(from.toString(), {
+        action: 'sync-init',
+        data: {
+          request: payload.request || undefined,
+          success: true,
         },
-        {
-          to: remotePeerId,
-          encrypt: { recipients: [remoteDID] },
-        }
-      );
+      });
       return;
     }
 
     if (payload.type === 'sync-put') {
-      if (!this._offline[remotePeerId]) {
-        this._offline[remotePeerId] = [];
+      if (!this._offline[did]) {
+        this._offline[did] = [];
       }
-      if (
-        this._offline[remotePeerId].length >= Number(this.config.sync?.limit)
-      ) {
-        throw new Error('offline sync limit reached for peer: ' + remotePeerId);
+      if (this._offline[did].length >= Number(this.config.sync?.limit)) {
+        throw new Error('offline sync limit reached for peer: ' + did);
       }
       // pin the document until it can be delivered
       const cid = await this.instance.store(payload, {
-        encrypt: { recipients: [this.instance.id, remoteDID, payload.to] },
+        encrypt: { recipients: [this.instance.id, did, payload.to] },
         dag: { pin: true },
       });
-      this._offline[remotePeerId].push(cid.toString());
-      await this.instance.send(
-        {
-          action: 'sync-put',
-          data: {
-            cid,
-            request: payload.request || undefined,
-            success: true,
-          },
+      this._offline[did].push(cid.toString());
+      await this.instance.send(did, {
+        action: 'sync-put',
+        data: {
+          cid,
+          request: payload.request || undefined,
+          success: true,
         },
-        {
-          to: remotePeerId,
-          encrypt: { recipients: [remoteDID] },
-        }
-      );
+      });
     }
 
     if (payload.type === 'pin') {
-      if (!this._pins[remotePeerId]) {
-        this._pins[remotePeerId] = [];
+      if (!this._pins[did]) {
+        this._pins[did] = [];
       }
 
-      if (this._pins[remotePeerId].length >= Number(this.config.pins?.limit)) {
-        throw new Error('pin limit reached for peer: ' + remotePeerId);
+      if (this._pins[did].length >= Number(this.config.pins?.limit)) {
+        throw new Error('pin limit reached for peer: ' + did);
       }
 
       try {
         const cid = payload.data;
         await this.instance.ipfs.pin.add(cid);
-        await this.instance.send(
-          {
-            action: 'pin',
-            data: {
-              cid,
-              request: payload.request || undefined,
-              success: true,
-            },
+        await this.instance.send(did, {
+          action: 'pin',
+          data: {
+            cid,
+            request: payload.request || undefined,
+            success: true,
           },
-          {
-            to: remotePeerId,
-            encrypt: { recipients: [remoteDID] },
-          }
-        );
+        });
       } catch (error) {
         console.error(error);
       }

@@ -1,7 +1,7 @@
-import Iridium from '../dist/index.js';
+import { createIridiumIPFS } from '../dist/index.js';
 import SyncNode from '../dist/sync.js';
 
-const client = await Iridium.fromSeedString('sync node a seed', {
+const client = await createIridiumIPFS('sync node a seed', {
   config: {
     ipfs: {
       config: {

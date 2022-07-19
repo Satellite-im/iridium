@@ -1,11 +1,11 @@
 import { DID } from 'dids';
 import { PeerId } from '@libp2p/interfaces/peer-id';
 import { CID } from 'multiformats';
-import { IridiumIdentityProvider } from 'src/core/identity/interface';
-import { IridiumDocument, IridiumLogger } from 'src/types';
-import { DIDToPeerId } from 'src/core/identity/did/utils';
+import { IridiumIdentityProvider } from '../../../core/identity/interface';
+import { IridiumDocument, IridiumLogger } from '../../../types';
+import { DIDToPeerId } from '../../../core/identity/did/utils';
 import { IPFS } from 'ipfs-core-types';
-import type Iridium from 'src/iridium';
+import type Iridium from '../../../iridium';
 import { DEFAULT_IPNS_PUBLISH_OPTIONS } from './dag';
 import { ResolveOptions } from 'ipfs-core-types/root';
 
@@ -35,8 +35,8 @@ export class IridiumIPFSIdentity implements IridiumIdentityProvider {
     return this._peerId?.toString();
   }
 
-  async getRootCID(resolve = false): Promise<CID> {
-    if (resolve) {
+  async resolve(force = false): Promise<CID> {
+    if (force || !this._cid) {
       await this._ipnsResolve();
     }
 
@@ -49,7 +49,7 @@ export class IridiumIPFSIdentity implements IridiumIdentityProvider {
     return this._cid;
   }
 
-  async setRootCID(cid: CID | string): Promise<void> {
+  async set(cid: CID | string): Promise<void> {
     this.logger.debug('iridium/set', 'publishing root CID to ipns');
     await this.ipfs.name
       .publish(cid, DEFAULT_IPNS_PUBLISH_OPTIONS)
@@ -71,7 +71,7 @@ export class IridiumIPFSIdentity implements IridiumIdentityProvider {
     this._cid = typeof cid === 'string' ? CID.parse(cid) : cid;
   }
 
-  async getRootDocument<T>(): Promise<T> {
+  async getDocument<T>(): Promise<T> {
     if (!this._document) {
       throw new Error(
         'ipfs/identity/getRootDocument: failed to resolve DID -> IPNS'

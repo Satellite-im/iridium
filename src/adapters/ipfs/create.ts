@@ -1,14 +1,15 @@
 import { IPFS } from 'ipfs-core';
 import { PeerId } from '@libp2p/interfaces/peer-id';
-import Iridium from 'src/iridium';
-import { IridiumConfig, IridiumLogger } from 'src/types';
+import Iridium from '../../iridium';
+import { IridiumConfig, IridiumLogger } from '../../types';
 import { ipfsNodeFromKey } from './config';
-import { createDID } from 'src/core/identity/did/create';
-import { keypairFromSeed } from 'src/core/crypto/ed25519';
-import { unmarshalEd25519PrivateKey } from '@libp2p/crypto/dist/src/keys/ed25519-class';
+import { createDID } from '../../core/identity/did/create';
+import { keypairFromSeed } from '../../core/crypto/ed25519';
+import { keys } from '@libp2p/crypto';
 import { ipfsProviders } from './providers';
 import { Config } from 'ipfs-core-types/config';
 import { IPFSWithLibP2P } from './types';
+import { sha256 } from 'multiformats/hashes/sha2';
 
 export type IPFSSeedConfig = {
   config?: IridiumConfig & { ipfs?: Config };
@@ -16,6 +17,10 @@ export type IPFSSeedConfig = {
   peerId?: PeerId;
   logger?: IridiumLogger;
 };
+
+export type IridiumIPFS = Iridium & { ipfs: IPFS };
+
+const textEncoder = new TextEncoder();
 
 /**
  * Initialize an Iridium instance from seed bytes
@@ -25,21 +30,14 @@ export type IPFSSeedConfig = {
  */
 export async function createIridiumIPFS(
   seed: string,
-  {
-    config = {},
-    ipfs = undefined,
-    peerId = undefined,
-    logger = console,
-  }: IPFSSeedConfig = {}
-): Promise<Iridium> {
-  const keypair = await keypairFromSeed(seed);
-  const did = await createDID(keypair);
-  if (!ipfs) {
-    const key = await unmarshalEd25519PrivateKey(keypair.secretKey);
-    const init = await ipfsNodeFromKey(key, config);
-    ipfs = init.ipfs;
-    peerId = init.peerId;
-  }
+  { config = {}, logger = console }: IPFSSeedConfig = {}
+): Promise<IridiumIPFS> {
+  const seedBytes = await sha256.encode(textEncoder.encode(seed));
+  const key = await keys.supportedKeys.ed25519.generateKeyPairFromSeed(
+    seedBytes
+  );
+  const did = await createDID(key.bytes.slice(4), key.public.bytes.slice(4));
+  const { ipfs, peerId } = await ipfsNodeFromKey(key, config);
   // TODO: if user-provided IPFS we should check that it matches the keypair
   if (!ipfs) {
     throw new Error('IPFS node not provided');
@@ -48,12 +46,19 @@ export async function createIridiumIPFS(
     throw new Error('peerId is required');
   }
 
-  const providers = await ipfsProviders(ipfs as IPFSWithLibP2P, did);
-  const client = new Iridium(providers);
+  const providers = await ipfsProviders(
+    ipfs as IPFSWithLibP2P,
+    peerId,
+    did,
+    logger
+  );
+  const client: IridiumIPFS = Object.assign(new Iridium(providers), { ipfs });
   if (config.followedPeers) {
     logger.info('iridium/init', 'followed peers', config.syncNodes);
-    client.p2p.(config.followedPeers);
+    config.followedPeers.forEach((peerId) => client.p2p.connect(peerId));
   }
+
+  client.ipfs = ipfs;
 
   return client;
 }

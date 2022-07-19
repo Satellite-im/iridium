@@ -51,7 +51,9 @@ specifiers:
   merge: ^2.1.1
   minimist: ^1.2.6
   minisearch: ^5.0.0
+  module-alias: ^2.2.2
   multiformats: ^9.7.0
+  multihashes: ^4.0.3
   p-retry: ^5.1.1
   peer-id: ^0.16.0
   peer-id-bin: ^0.0.2
@@ -103,6 +105,7 @@ dependencies:
   merge: 2.1.1
   minisearch: 5.0.0
   multiformats: 9.7.0
+  multihashes: 4.0.3
   p-retry: 5.1.1
   rpc-utils: 0.6.2
   string-argv: 0.3.1
@@ -128,6 +131,7 @@ devDependencies:
   ipfs-core-types: 0.11.1_undici@5.6.0
   ipfs-repo: 14.0.1_node-fetch@3.2.6
   minimist: 1.2.6
+  module-alias: 2.2.2
   peer-id: 0.16.0
   peer-id-bin: 0.0.2
   prettier: 2.7.1
@@ -1693,6 +1697,10 @@ packages:
       - supports-color
       - undici
       - utf-8-validate
+    dev: false
+
+  /@multiformats/base-x/4.0.1:
+    resolution: {integrity: sha512-eMk0b9ReBbV23xXU693TAIrLyeO5iTgBZGSJfpqriG8UkYvr/hC9u9pyMlAakDNHWmbhMZCDs6KQO0jzKD8OTw==}
     dev: false
 
   /@multiformats/mafmt/11.0.2_undici@5.6.0:
@@ -5035,6 +5043,10 @@ packages:
       yargs-unparser: 2.0.0
     dev: false
 
+  /module-alias/2.2.2:
+    resolution: {integrity: sha512-A/78XjoX2EmNvppVWEhM2oGk3x4lLxnkEA4jTbaK97QKSDjkIoOsKQlfylt/d3kKKi596Qy3NP5XrXJ6fZIC9Q==}
+    dev: true
+
   /mortice/2.0.1:
     resolution: {integrity: sha512-9gsXmjq+5LZmXDIoyC/crf2i/7CUwDGSBEwSEsr1i/WfKmJ6DVt38B5kg6BE/WF/1/yfGJYiB1Wyiu423iI3nQ==}
     dependencies:
@@ -5072,6 +5084,14 @@ packages:
       - node-fetch
       - supports-color
 
+  /multibase/4.0.6:
+    resolution: {integrity: sha512-x23pDe5+svdLz/k5JPGCVdfn7Q5mZVMBETiC+ORfO+sor9Sgs0smJzAjfTbM5tckeCqnaUuMYoz+k3RXMmJClQ==}
+    engines: {node: '>=12.0.0', npm: '>=6.0.0'}
+    deprecated: This module has been superseded by the multiformats module
+    dependencies:
+      '@multiformats/base-x': 4.0.1
+    dev: false
+
   /multicast-dns/7.2.5:
     resolution: {integrity: sha512-2eznPJP8z2BFLX50tf0LuODrpINqP1RVIm/CObbTcBRITQgmC/TjcREF1NeTBzIcR5XO/ukWo+YHOjBbFwIupg==}
     hasBin: true
@@ -5082,6 +5102,15 @@ packages:
 
   /multiformats/9.7.0:
     resolution: {integrity: sha512-uv/tcgwk0yN4DStopnBN4GTgvaAlYdy6KnZpuzEPFOYQd71DYFJjs0MN1ERElAflrZaYyGBWXyGxL5GgrxIx0Q==}
+
+  /multihashes/4.0.3:
+    resolution: {integrity: sha512-0AhMH7Iu95XjDLxIeuCOOE4t9+vQZsACyKZ9Fxw2pcsRmlX4iCn1mby0hS0bb+nQOVpdQYWPpnyusw4da5RPhA==}
+    engines: {node: '>=12.0.0', npm: '>=6.0.0'}
+    dependencies:
+      multibase: 4.0.6
+      uint8arrays: 3.0.0
+      varint: 5.0.2
+    dev: false
 
   /murmurhash3js-revisited/3.0.0:
     resolution: {integrity: sha512-/sF3ee6zvScXMb1XFJ8gDsSnY+X8PbOyjIuBhtgis10W2Jx4ZjIhikUCIF9c4gpJxVnQIsPAFrSwTCuAjicP6g==}

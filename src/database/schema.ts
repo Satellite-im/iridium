@@ -1,4 +1,4 @@
-import Iridium from 'src/iridium';
+import Iridium from '../iridium';
 
 export type IridiumSchemaFieldType =
   | 'string'

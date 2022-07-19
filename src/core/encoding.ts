@@ -2,13 +2,10 @@ import { DecryptJWEOptions, DID } from 'dids';
 import * as json from 'multiformats/codecs/json';
 import { sha256 as _sha256 } from 'multiformats/hashes/sha2';
 import { base64 } from 'multiformats/bases/base64';
-import { verifySigned } from 'src/core/identity/did/utils';
-import Iridium from 'src/iridium';
-import {
-  IridiumDocument,
-  IridiumPayload,
-  IridiumWriteOptions,
-} from 'src/types';
+import { verifySigned } from '../core/identity/did/utils';
+import Iridium from '../iridium';
+import { IridiumDocument, IridiumPayload, IridiumWriteOptions } from '../types';
+import { CID } from 'multiformats';
 
 export type IridiumDecodedPayload<T = IridiumDocument> = {
   encoding: 'jwe' | 'jws' | 'json' | 'raw';
@@ -102,4 +99,11 @@ export async function encodePayload(
   }
 
   return encoded;
+}
+
+export async function toCID(payload: any) {
+  const bytes = json.encode(payload);
+  const hash = await _sha256.digest(bytes);
+  const cid = CID.create(1, json.code, hash);
+  return cid;
 }

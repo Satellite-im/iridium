@@ -1,14 +1,14 @@
 import { DID } from 'dids';
 import pRetry from 'p-retry';
-import { IridiumPubsubProvider } from 'src/core/pubsub/interface';
-import type Iridium from 'src/iridium';
+import { IridiumPubsubProvider } from '../../../core/pubsub/interface';
+import type Iridium from '../../../iridium';
 import {
   IridiumLogger,
   IridiumPeerIdentifier,
   IridiumPubsubMessage,
-} from 'src/types';
+} from '../../../types';
 import { IPFSWithLibP2P } from '../types';
-import Emitter from 'src/core/emitter';
+import Emitter from '../../../core/emitter';
 
 export class IPFSPubsubProvider
   extends Emitter<IridiumPubsubMessage>

@@ -1,11 +1,6 @@
-import type { DID } from 'dids';
 import type { Multiaddr } from '@multiformats/multiaddr';
-import type Iridium from 'src/iridium';
-import {
-  IridiumPeer,
-  IridiumPeerIdentifier,
-  IridiumSendOptions,
-} from 'src/types';
+import type Iridium from '../../iridium';
+import { IridiumPeer, IridiumPeerIdentifier } from '../../types';
 
 export interface IridiumP2PProvider<
   Address = Multiaddr,

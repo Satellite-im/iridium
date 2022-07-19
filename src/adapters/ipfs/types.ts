@@ -1,8 +1,8 @@
 import type { IPFS } from 'ipfs-core-types';
 import type { Libp2p } from 'libp2p';
 import type { IPFSConfig } from 'ipfs-core/components/network';
-import { IridiumConfig, IridiumPeer } from 'src/types';
-import { LibP2PConfig } from 'src/adapters/ipfs/libp2p/types';
+import { IridiumConfig, IridiumPeer } from '../../types';
+import { LibP2PConfig } from '../../adapters/ipfs/libp2p/types';
 import { PeerId } from '@libp2p/interfaces/peer-id';
 import { ProtocolStream } from '@libp2p/interfaces/connection';
 

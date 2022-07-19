@@ -1,5 +1,4 @@
-import { DID } from 'dids';
-import { hash } from 'src/core/encoding';
+import { hash } from '../core/encoding';
 import Emitter from '../core/emitter';
 import Iridium from '../iridium';
 import {
@@ -17,7 +16,7 @@ export type IridiumNamespaceConfig = {
 export type IridiumNamespaceRole = 'admin' | 'write' | 'read';
 
 export class IridiumNamespace<P = IridiumDocument> extends Emitter {
-  private readonly _hash: string;
+  private _hash?: string;
   private _lock?: Promise<void>;
   private _lockCancel?: (reason?: any) => void;
   private _debounce?: any;
@@ -28,7 +27,6 @@ export class IridiumNamespace<P = IridiumDocument> extends Emitter {
     private _owner: string = _instance.id
   ) {
     super();
-    this._hash = hash({ id: this._id, owner: this._owner });
   }
 
   get id() {
@@ -44,12 +42,19 @@ export class IridiumNamespace<P = IridiumDocument> extends Emitter {
   }
 
   async init() {
+    this._hash = await hash({ id: this._id, owner: this._owner });
+    if (!this.hash) {
+      throw new Error('failed to generate hash');
+    }
     await this._instance.subscribe(this.hash, {
       handler: this.onMessage.bind(this),
     });
   }
 
   async send(payload: P & { type: string }) {
+    if (!this.hash) {
+      throw new Error('invalid hash');
+    }
     await this._instance.publish(this.hash, payload);
     await this.emit(`send/${payload.type}`, payload);
   }
