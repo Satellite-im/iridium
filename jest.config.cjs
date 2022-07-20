@@ -9,9 +9,7 @@ module.exports = {
     '^[@|~]/(.*)$': '<rootDir>/$1',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/'],
-  coveragePathIgnorePatterns: [
-    '<rootDir>/coverage',
-  ],
+  coveragePathIgnorePatterns: ['<rootDir>/coverage'],
   testEnvironment: 'jsdom',
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest'],
