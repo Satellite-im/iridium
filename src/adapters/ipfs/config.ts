@@ -3,6 +3,8 @@ import type { KeyType, PrivateKey } from '@libp2p/interfaces/keys';
 import { create, Options } from 'ipfs-core';
 import type { PeerId } from 'ipfs-core/ipns';
 import * as ipfsHttpClient from 'ipfs-http-client';
+import { WebSockets } from '@libp2p/websockets';
+import * as filters from '@libp2p/websockets/filters';
 import { DelegatedContentRouting } from '@libp2p/delegated-content-routing';
 import { DelegatedPeerRouting } from '@libp2p/delegated-peer-routing';
 import type { IridiumConfig } from '../../types';
@@ -85,16 +87,21 @@ export async function ipfsConfig(
         ping: {
           protocolPrefix: 'iridium',
         },
-        peerStore: {
-          addressFilter: (peerId: PeerId) => {
-            return (
-              config.followedPeers?.includes(peerId.toString()) ||
-              config.syncNodes?.some(
-                (node) => node.peerId === peerId.toString()
-              )
-            );
-          },
-        },
+        transports: [
+          new WebSockets({
+            filter: filters.all,
+          }),
+        ],
+        // peerStore: {
+        //   addressFilter: (peerId: PeerId) => {
+        //     return (
+        //       config.followedPeers?.includes(peerId.toString()) ||
+        //       config.syncNodes?.some(
+        //         (node) => node.peerId === peerId.toString()
+        //       )
+        //     );
+        //   },
+        // },
         relay: {
           enabled: true,
           hop: {

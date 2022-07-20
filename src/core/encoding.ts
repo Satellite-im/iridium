@@ -75,7 +75,7 @@ export async function encodePayload(
 ) {
   if (options.encrypt) {
     return json.encode({
-      type: 'jwe',
+      encoding: 'jwe',
       body: await did.createJWE(
         json.encode(payload),
         options.encrypt.recipients || [did.id],
@@ -84,18 +84,18 @@ export async function encodePayload(
     });
   } else if (options.sign) {
     return json.encode({
-      type: 'jws',
+      encoding: 'jws',
       body: await did.createJWS(
         payload,
         options.sign === true ? undefined : options.sign
       ),
     });
   }
-  const encoded = json.encode({ type: 'text', body: payload });
+  const encoded = json.encode({ encoding: 'text', body: payload });
 
   if (options.link && options.iridium) {
     const cid = await options.iridium.store(encoded, options);
-    return json.encode({ type: 'dag', body: cid });
+    return json.encode({ encoding: 'dag', body: cid });
   }
 
   return encoded;

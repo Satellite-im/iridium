@@ -48,7 +48,7 @@ export class IPFSPubsubProvider
       const message: IridiumPubsubMessage = {
         topic: event.detail.topic,
         from: peerIdToDID(event.detail.from),
-        payload: decodePayload(payload),
+        payload: decodePayload(payload, this.iridium?.did),
       };
 
       if (message.payload.type) {

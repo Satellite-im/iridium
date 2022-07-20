@@ -39,5 +39,7 @@ export class IPFSDagProvider<Payload = any>
     const result = await this.ipfs.dag.put(payload, options);
     return result;
   }
-  async stop() {}
+  async stop() {
+    await this.ipfs.stop();
+  }
 }
