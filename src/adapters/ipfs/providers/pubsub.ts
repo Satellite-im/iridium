@@ -2,13 +2,17 @@ import { DID } from 'dids';
 import pRetry from 'p-retry';
 import { IridiumPubsubProvider } from '../../../core/pubsub/interface';
 import type Iridium from '../../../iridium';
-import {
+import type {
   IridiumLogger,
+  IridiumPayload,
   IridiumPeerIdentifier,
   IridiumPubsubMessage,
 } from '../../../types';
 import { IPFSWithLibP2P } from '../types';
 import Emitter from '../../../core/emitter';
+import * as json from 'multiformats/codecs/json';
+import { peerIdToDID } from '../utils';
+import { decodePayload } from '../../../core/encoding';
 
 export class IPFSPubsubProvider
   extends Emitter<IridiumPubsubMessage>
@@ -33,7 +37,24 @@ export class IPFSPubsubProvider
       'iridium/pubsub/ipfs/subscribe',
       `subscribing to topic "${topic}"`
     );
-    return this.ipfs.libp2p.pubsub.subscribe(topic);
+    await this.ipfs.libp2p.pubsub.subscribe(topic);
+    this.ipfs.libp2p.pubsub.addEventListener('message', (event) => {
+      this.logger.info(
+        'iridium/pubsub/ipfs/subscribe',
+        'message received',
+        event
+      );
+      const payload = json.decode<IridiumPayload>(event.detail.data);
+      const message: IridiumPubsubMessage = {
+        topic: event.detail.topic,
+        from: peerIdToDID(event.detail.from),
+        payload: decodePayload(payload),
+      };
+
+      if (message.payload.type) {
+        this.emit(message.payload.type, message);
+      }
+    });
   }
 
   async unsubscribe(topic: string) {
