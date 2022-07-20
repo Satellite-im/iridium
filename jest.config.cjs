@@ -1,13 +1,8 @@
 module.exports = {
   collectCoverageFrom: [
     '**/*.{ts,tsx}',
-    '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/*.config.js',
-    '!**/*.config.ts',
-    '!**/config.ts',
-    '!**/startup.js',
-    '!**/*.eslintrc.js',
   ],
   moduleDirectories: ['node_modules', 'src'],
   moduleNameMapper: {
@@ -15,19 +10,11 @@ module.exports = {
     '^.+\\.(css|sass|scss)$': '<rootDir>/__mocks__/styleMock.js',
     '^.+\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
     '^[@|~]/(.*)$': '<rootDir>/$1',
-    skaler: '<rootDir>/store/textile/__mocks__/skaler.js',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/'],
   coveragePathIgnorePatterns: [
-    '<rootDir>/.nuxt',
-    '<rootDir>/cypress',
     '<rootDir>/coverage',
     '<rootDir>/plugins',
-    '<rootDir>/electron',
-    '<rootDir>/libraries/Enums',
-    '<rootDir>/libraries/Files/errors',
-    '<rootDir>/libraries/Files/types',
-    '<rootDir>/types',
   ],
   testEnvironment: 'jsdom',
   transform: {
