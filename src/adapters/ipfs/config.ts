@@ -128,5 +128,6 @@ export async function ipfsConfig(
     config.ipfs
   );
 
+  // @ts-ignore
   return conf;
 }

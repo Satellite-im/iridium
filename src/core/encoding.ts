@@ -27,7 +27,7 @@ export async function decodePayload<
   payload: IridiumPayload,
   did?: DID,
   options?: { decrypt?: DecryptJWEOptions }
-): Promise<IridiumDecodedPayload<Doc | string | Uint8Array> | false> {
+): Promise<IridiumDecodedPayload> {
   if (payload.encoding === 'raw') {
     return { encoding: 'raw', body: payload.body as Uint8Array };
   }

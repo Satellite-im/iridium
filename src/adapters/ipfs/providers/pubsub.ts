@@ -38,21 +38,21 @@ export class IPFSPubsubProvider
       `subscribing to topic "${topic}"`
     );
     await this.ipfs.libp2p.pubsub.subscribe(topic);
-    this.ipfs.libp2p.pubsub.addEventListener('message', (event) => {
-      this.logger.info(
-        'iridium/pubsub/ipfs/subscribe',
-        'message received',
-        event
-      );
+    this.ipfs.libp2p.pubsub.addEventListener('message', async (event) => {
       const payload = json.decode<IridiumPayload>(event.detail.data);
+      const decoded = await decodePayload(payload, this.iridium?.did);
       const message: IridiumPubsubMessage = {
         topic: event.detail.topic,
         from: peerIdToDID(event.detail.from),
-        payload: decodePayload(payload, this.iridium?.did),
+        payload: decoded,
       };
+      this.logger.info('iridium/pubsub/ipfs/subscribe', 'message received', {
+        message,
+        event,
+      });
 
-      if (message.payload.type) {
-        this.emit(message.payload.type, message);
+      if (message.payload.body.type) {
+        this.emit(message.payload.body.type, message);
       }
     });
   }

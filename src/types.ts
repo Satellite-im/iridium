@@ -9,6 +9,7 @@ import { CID } from 'multiformats/cid';
 import type { GeneralJWS } from 'dids';
 import { JWE } from 'did-jwt';
 import { Multiaddr } from '@multiformats/multiaddr';
+import { IridiumDecodedPayload } from './core/encoding';
 
 export type IridiumLogger = {
   log: (...args: any[]) => void;
@@ -117,7 +118,7 @@ export type IridiumPayloadEvent<B = IridiumPayload> = {
 export type IridiumMessage<P = IridiumDocument> = {
   from: IridiumPeerIdentifier;
   to?: IridiumPeerIdentifier | IridiumPeerIdentifier[];
-  payload: P;
+  payload: IridiumDecodedPayload<P>;
 };
 
 export type IridiumPubsubMessage<P = IridiumDocument> = IridiumMessage<P> & {

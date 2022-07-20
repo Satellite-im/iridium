@@ -134,32 +134,33 @@ export default class IridiumSyncAgent {
   async onSyncMessage(message: IridiumMessage) {
     console.info('sync message', message);
     const { from, payload } = message;
-    const { type } = payload;
+    const { encoding, body } = payload;
+    const { type } = body;
 
     const did = from.toString();
     if (type === 'sync-init') {
-      if (!payload.did) {
+      if (!payload.body.did) {
         console.error('sync-init message missing did');
         return;
       }
-      const peerId = (await DIDToPeerId(payload.did)).toString();
+      const peerId = (await DIDToPeerId(body.did)).toString();
       this._peers[did] = {
         did: from.toString(),
         peerId,
         seen: Date.now(),
-        pins: payload?.pins || [],
+        pins: body?.pins || [],
       };
       await this.instance.send(from.toString(), {
         action: 'sync-init',
         data: {
-          request: payload.request || undefined,
+          request: body.request || undefined,
           success: true,
         },
       });
       return;
     }
 
-    if (payload.type === 'sync-put') {
+    if (body.type === 'sync-put') {
       if (!this._offline[did]) {
         this._offline[did] = [];
       }
@@ -168,7 +169,7 @@ export default class IridiumSyncAgent {
       }
       // pin the document until it can be delivered
       const cid = await this.instance.store(payload, {
-        encrypt: { recipients: [this.instance.id, did, payload.to] },
+        encrypt: { recipients: [this.instance.id, did, body.to] },
         dag: { pin: true },
       });
       this._offline[did].push(cid.toString());
@@ -176,13 +177,13 @@ export default class IridiumSyncAgent {
         action: 'sync-put',
         data: {
           cid,
-          request: payload.request || undefined,
+          request: body.request || undefined,
           success: true,
         },
       });
     }
 
-    if (payload.type === 'pin') {
+    if (body.type === 'pin') {
       if (!this._pins[did]) {
         this._pins[did] = [];
       }
@@ -192,13 +193,13 @@ export default class IridiumSyncAgent {
       }
 
       try {
-        const cid = payload.data;
+        const cid = body.data;
         await this.instance.ipfs.pin.add(cid);
         await this.instance.send(did, {
           action: 'pin',
           data: {
             cid,
-            request: payload.request || undefined,
+            request: body.request || undefined,
             success: true,
           },
         });

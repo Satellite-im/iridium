@@ -60,7 +60,7 @@ export class IridiumNamespace<P = IridiumDocument> extends Emitter {
   }
 
   async onMessage(message: IridiumPubsubMessage) {
-    this.emit(message.payload.type || 'message', message.payload);
+    this.emit(message.payload.body.type || 'message', message.payload);
   }
 
   async set<T = IridiumDocument>(
