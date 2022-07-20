@@ -46,7 +46,7 @@
     "example": "node --no-warnings --experimental-specifier-resolution=node",
     "test": "jest",
     "lint": "eslint",
-    "prepare": "pnpm build",
+    "prepare": "pnpm build:ipfs && pnpm build:browser && pnpm build:node && cp dist/index.d.ts dist/index.browser.d.ts",
     "size": "size-limit",
     "analyze": "size-limit --why"
   },
