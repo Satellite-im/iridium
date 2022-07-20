@@ -1,13 +1,10 @@
 import * as readline from 'node:readline';
 import { stdin as input, stdout as output } from 'node:process';
 import IridiumTerminal from '../helpers/readline-adapter';
-import {
-  createIridiumIPFS,
-  IPFSSeedConfig,
-  IridiumIPFS,
-} from '../adapters/ipfs/create';
+import { createIridiumIPFS } from '../adapters/ipfs/create';
 import { IridiumMessage } from '../types';
 import { DIDToPeerId } from '../core/identity/did/utils';
+import { IPFSSeedConfig, IridiumIPFS } from 'src/adapters/ipfs/types';
 
 export type IridiumSyncAgentConfig = {
   peers?: {
@@ -58,8 +55,10 @@ const DEFAULT_CONFIG: IridiumSyncAgentConfig = {
   server: {
     config: {
       ipfs: {
-        Addresses: {
-          Swarm: ['/ip4/127.0.0.1/tcp/4002', '/ip4/127.0.0.1/tcp/4003/ws'],
+        config: {
+          Addresses: {
+            Swarm: ['/ip4/127.0.0.1/tcp/4002', '/ip4/127.0.0.1/tcp/4003/ws'],
+          },
         },
       },
     },

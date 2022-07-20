@@ -1,24 +1,10 @@
-import { IPFS } from 'ipfs-core';
-import { PeerId } from '@libp2p/interfaces/peer-id';
 import Iridium from '../../iridium';
-import { IridiumConfig, IridiumLogger } from '../../types';
 import { ipfsNodeFromKey } from './config';
 import { createDID } from '../../core/identity/did/create';
-import { keypairFromSeed } from '../../core/crypto/ed25519';
 import { keys } from '@libp2p/crypto';
 import { ipfsProviders } from './providers';
-import { Config } from 'ipfs-core-types/config';
-import { IPFSWithLibP2P } from './types';
+import { IPFSSeedConfig, IPFSWithLibP2P, IridiumIPFS } from './types';
 import { sha256 } from 'multiformats/hashes/sha2';
-
-export type IPFSSeedConfig = {
-  config?: IridiumConfig & { ipfs?: Config };
-  ipfs?: IPFS;
-  peerId?: PeerId;
-  logger?: IridiumLogger;
-};
-
-export type IridiumIPFS = Iridium & { ipfs: IPFS };
 
 const textEncoder = new TextEncoder();
 
@@ -29,10 +15,13 @@ const textEncoder = new TextEncoder();
  * @returns
  */
 export async function createIridiumIPFS(
-  seed: string,
+  seed: string | Uint8Array,
   { config = {}, logger = console }: IPFSSeedConfig = {}
 ): Promise<IridiumIPFS> {
-  const seedBytes = await sha256.encode(textEncoder.encode(seed));
+  const seedBytes =
+    typeof seed === 'string'
+      ? await sha256.encode(textEncoder.encode(seed))
+      : seed;
   const key = await keys.supportedKeys.ed25519.generateKeyPairFromSeed(
     seedBytes
   );
@@ -52,7 +41,10 @@ export async function createIridiumIPFS(
     did,
     logger
   );
-  const client: IridiumIPFS = Object.assign(new Iridium(providers), { ipfs });
+  const client: IridiumIPFS = Object.assign(new Iridium(providers), {
+    ipfs,
+    peerId,
+  });
   if (config.followedPeers) {
     logger.info('iridium/init', 'followed peers', config.syncNodes);
     config.followedPeers.forEach((peerId) => client.p2p.connect(peerId));

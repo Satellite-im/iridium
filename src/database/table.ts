@@ -348,6 +348,14 @@ export class IridiumDBTable extends Emitter {
     });
   }
 
+  async query(options: {
+    limit?: number;
+    offset?: number;
+    order?: { [key: string]: 'asc' | 'desc' };
+    search?: any;
+    blockWhere?: (block: IridiumTableRollup) => boolean;
+  }) {}
+
   async assertUniqueIndexes(record: IridiumDocument) {
     await Promise.all(
       Object.values(this.indexes || {}).map(async (index) => {

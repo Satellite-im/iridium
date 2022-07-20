@@ -17,6 +17,10 @@ export class IridiumTestIdentity<DocumentType = IridiumDocument>
     private logger: IridiumLogger = console
   ) {}
 
+  get id() {
+    return this.did.id;
+  }
+
   async start(iridium: Iridium) {}
 
   async resolve(): Promise<CID> {

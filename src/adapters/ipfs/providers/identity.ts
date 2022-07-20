@@ -23,6 +23,10 @@ export class IridiumIPFSIdentity implements IridiumIdentityProvider {
     private logger: IridiumLogger = console
   ) {}
 
+  get id(): string {
+    return this.did.id;
+  }
+
   async start(iridium: Iridium) {
     this._peerId = await DIDToPeerId(this.did);
   }

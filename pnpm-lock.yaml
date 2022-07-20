@@ -51,7 +51,6 @@ specifiers:
   merge: ^2.1.1
   minimist: ^1.2.6
   minisearch: ^5.0.0
-  module-alias: ^2.2.2
   multiformats: ^9.7.0
   multihashes: ^4.0.3
   p-retry: ^5.1.1
@@ -131,7 +130,6 @@ devDependencies:
   ipfs-core-types: 0.11.1_undici@5.6.0
   ipfs-repo: 14.0.1_node-fetch@3.2.6
   minimist: 1.2.6
-  module-alias: 2.2.2
   peer-id: 0.16.0
   peer-id-bin: 0.0.2
   prettier: 2.7.1
@@ -5042,10 +5040,6 @@ packages:
       yargs-parser: 20.2.4
       yargs-unparser: 2.0.0
     dev: false
-
-  /module-alias/2.2.2:
-    resolution: {integrity: sha512-A/78XjoX2EmNvppVWEhM2oGk3x4lLxnkEA4jTbaK97QKSDjkIoOsKQlfylt/d3kKKi596Qy3NP5XrXJ6fZIC9Q==}
-    dev: true
 
   /mortice/2.0.1:
     resolution: {integrity: sha512-9gsXmjq+5LZmXDIoyC/crf2i/7CUwDGSBEwSEsr1i/WfKmJ6DVt38B5kg6BE/WF/1/yfGJYiB1Wyiu423iI3nQ==}

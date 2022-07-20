@@ -56,3 +56,7 @@ export async function verifySigner(payload: any, signer: string, did: DID) {
   }
   return verify.kid === signer;
 }
+
+export function didString(did: DID | string): string {
+  return typeof did === 'string' ? did : did.id;
+}

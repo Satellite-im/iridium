@@ -14,6 +14,7 @@ import {
   IridiumWriteOptions,
   IridiumGetOptions,
   IridiumSubscribeOptions,
+  IridiumPeerIdentifier,
 } from './types';
 import { IridiumP2PProvider } from './core/p2p/interface';
 import { IridiumDAGProvider } from './core/dag/interface';
@@ -229,8 +230,10 @@ export default class Iridium extends Emitter<
       return get(this._cache, convertPath(path));
     }
 
-    const _rootCID = await this.identity.resolve();
-    const _root = await this.dag.get(_rootCID, config.load?.dag);
+    const _rootCID = await this.identity.resolve().catch(() => undefined);
+    const _root = _rootCID
+      ? await this.dag.get(_rootCID, config.load?.dag)
+      : undefined;
 
     if (path === '/') {
       this._cache = _root;
@@ -310,8 +313,10 @@ export default class Iridium extends Emitter<
    * Send a message to the given DID
    * @param did
    */
-  async send(did: string, payload: any) {
-    return this.p2p.send(did, payload);
+  async send(did: string | string[], payload: any) {
+    return Array.isArray(did)
+      ? did.map((id: IridiumPeerIdentifier) => this.p2p.send(id, payload))
+      : this.p2p.send(did, payload);
   }
 }
 

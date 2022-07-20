@@ -4,6 +4,7 @@ import type Iridium from '../../iridium';
 import { IridiumDocument } from '../../types';
 
 export type IridiumIdentityProvider<DocumentType = IridiumDocument> = {
+  id: string;
   did: DID;
   start?(iridium: Iridium): Promise<void>;
   resolve(): Promise<CID>;
