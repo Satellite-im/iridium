@@ -154,3 +154,49 @@ await iridium.set('/profile/friends/0', {
 const cid = await iridium.store(document, arrayOfTargetDIDs, config)
 const doc = await iridium.load(cid) // throws if signature invalid
 ```
+
+## Run with docker-compose
+### Setup env file
+
+Server names in nginx configuration are composed in the following way:
+
+Sync Agent: `server_name ${SYNC_PREFIX}.${HOSTNAME}`
+
+Libp2p relay server: `server_name ${RELAY_PREFIX}.${HOSTNAME}`
+
+To customize the endpoint the corresponding environment variables must be set in the env file
+```bash
+#### NGINX ####
+SYNC_PREFIX="sync"
+RELAY_PREFIX="relay"
+HOSTNAME="satellite.im"
+```
+Certbot configuration can be customized by environment variables
+```bash
+#### CERTBOT ####
+CERTBOT_EMAIL=support@satellite.im # required
+
+# Optional (Defaults)
+DHPARAM_SIZE=2048
+ELLIPTIC_CURVE=secp256r1
+RENEWAL_INTERVAL=8d
+RSA_KEY_SIZE=2048
+STAGING=0
+USE_ECDSA=1
+
+# Advanced (Defaults)
+CERTBOT_AUTHENTICATOR=webroot
+CERTBOT_DNS_PROPAGATION_SECONDS=""
+DEBUG=0
+USE_LOCAL_CA=0 # For local development
+```
+
+### Build the image
+```bash
+docker-compose build
+```
+
+### Run the services
+```bash
+docker-compose up -d
+```
