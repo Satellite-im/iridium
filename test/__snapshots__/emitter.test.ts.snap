@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`emitter.Emitter.emit 0 1`] = `Promise {}`;
+
+exports[`emitter.Emitter.emit 1 1`] = `Array []`;
+
+exports[`emitter.Emitter.emit 2 1`] = `Array []`;
+
+exports[`emitter.Emitter.event 0 1`] = `Array []`;
+
+exports[`emitter.Emitter.event 1 1`] = `Array []`;
+
+exports[`emitter.Emitter.event 2 1`] = `Array []`;
+
+exports[`emitter.Emitter.event 3 1`] = `Array []`;
+
+exports[`emitter.Emitter.event 4 1`] = `Array []`;
+
+exports[`emitter.Emitter.off 0 1`] = `Array []`;
+
+exports[`emitter.Emitter.off 1 1`] = `Array []`;
+
+exports[`emitter.Emitter.off 2 1`] = `Array []`;
+
+exports[`emitter.Emitter.on 0 1`] = `1`;
+
+exports[`emitter.Emitter.on 1 1`] = `1`;
+
+exports[`emitter.Emitter.size 0 1`] = `0`;
