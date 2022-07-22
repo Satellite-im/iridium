@@ -1,17 +1,30 @@
-name: 'iridium'
+version: '3'
+
 services:
   sync-node:
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./docker/app.dockerfile
     working_dir: /app
     environment:
       # - NODE_ENV=production
-      - NODE_ENV_IRIDIUM_SEED="sync-node 1"
-      - APP_HOSTNAME="sync.satellite.dev"
+      - NODE_ENV_IRIDIUM_SEED=${NODE_ENV_IRIDIUM_SEED}
       - PEERID=${PEERID}
     volumes:
       - ./sync-node/data:/app/iridium
+  nginx:
+    build:
+      context: ./docker
+      dockerfile: nginx.dockerfile
+      args:
+        - SYNC_PREFIX=${SYNC_PREFIX}
+        - RELAY_PREFIX=${RELAY_PREFIX}
+        - HOSTNAME=${HOSTNAME}
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
-      - '8080:8080'
-      - '443:443'
+      - 80:80
+      - 443:443
+    volumes:
+      - ./sync-node/data:/etc/letsencrypt
