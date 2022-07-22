@@ -44,6 +44,6 @@ RUN pnpm i -g libp2p-relay-server
 
 WORKDIR /app
 
-COPY ./sync-node/start.sh /app/
+COPY ./docker/start.sh /app/
 
 CMD [ "sh", "./start.sh" ]

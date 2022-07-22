@@ -4,7 +4,7 @@ services:
   sync-node:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.app
+      dockerfile: ./docker/app.dockerfile
     working_dir: /app
     environment:
       # - NODE_ENV=production
@@ -15,7 +15,7 @@ services:
   nginx:
     build:
       context: ./docker
-      dockerfile: Dockerfile.nginx
+      dockerfile: nginx.dockerfile
       args:
         - SYNC_PREFIX=${SYNC_PREFIX}
         - RELAY_PREFIX=${RELAY_PREFIX}
