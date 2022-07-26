@@ -303,6 +303,7 @@ export default class Iridium extends Emitter<
       return;
     }
     await this.pubsub.subscribe(channel);
+    this.logger.info('iridium/subscribe', `subscribed to ${channel}`);
     if (options?.waitForSubscriber)
       await this.pubsub.waitForSubscriber(channel, {
         timeout: options.waitForSubscriber,

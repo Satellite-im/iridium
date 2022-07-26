@@ -14,6 +14,7 @@ import Emitter from '../../../core/emitter';
 import { IPFSWithLibP2P, IridiumIPFSPeer } from '../types';
 import { peerIdToDID } from '../utils';
 import { Multiaddr } from '@multiformats/multiaddr';
+import { base58btc } from 'multiformats/bases/base58';
 
 export class IPFSP2PProvider extends Emitter implements IridiumP2PProvider {
   private _dialing: string[] = [];
@@ -82,7 +83,12 @@ export class IPFSP2PProvider extends Emitter implements IridiumP2PProvider {
     return this.ipfs.stop();
   }
 
-  async addPeer({ did, peerId, type = 'peer', addr }: IridiumIPFSPeer) {
+  async addPeer({
+    did,
+    peerId,
+    type = 'peer',
+    addr,
+  }: IridiumIPFSPeer): Promise<void> {
     if (this.hasPeer(did)) {
       return;
     }
@@ -189,7 +195,7 @@ export class IPFSP2PProvider extends Emitter implements IridiumP2PProvider {
     if (message.from.toString() === this._iridium?.id) {
       return;
     }
-    this.logger.info('iridium/onPeerMessage', 'pubsub event received', event);
+    this.logger.info('iridium/onPeerMessage', 'pubsub event received', message);
     this.logger.info('iridium/onPeerMessage', 'emitting message', message);
     this.emit(message.topic, message.payload);
     if (message.payload.type) this.emit(message.payload.type, message.payload);
@@ -223,14 +229,21 @@ export class IPFSP2PProvider extends Emitter implements IridiumP2PProvider {
       const peerId = await DIDToPeerId(did);
       await this.addPeer({ did: did.toString(), peerId, type });
     }
-    if (!peer.protocol) {
+    if (!peer.channel) {
       await this.ipfs.swarm.connect(peer.addr || peer.peerId);
-      peer.protocol = await this.ipfs.libp2p.dialProtocol(peer.peerId, [
-        'iridium/p2p',
-      ]);
+      if (peer.peerId.publicKey) {
+        const channel = `peer/${base58btc.encode(peer.peerId.publicKey)}`;
+        peer.channel = channel;
+        this._peers[did.toString()] = peer;
+        this.logger.info('iridium/dial', `peer added`, this._peers);
+      }
+    }
+    if (peer.channel) {
+      this.logger.info('iridium/dial', `subscribing to ${peer.channel}`);
+      this.ipfs.pubsub.subscribe(peer.channel, this.onPeerConnect.bind(this));
     }
     // TODO: add message handler <------ !!!!!
-    return peer.protocol;
+    return peer.channel;
   }
 
   async listenAddresses() {

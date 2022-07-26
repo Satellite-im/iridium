@@ -3,10 +3,12 @@ import pRetry from 'p-retry';
 import { IridiumPubsubProvider } from '../../../core/pubsub/interface';
 import type Iridium from '../../../iridium';
 import type {
+  IridiumDocument,
   IridiumLogger,
   IridiumPayload,
   IridiumPeerIdentifier,
   IridiumPubsubMessage,
+  IridiumSendOptions,
 } from '../../../types';
 import { IPFSWithLibP2P } from '../types';
 import Emitter from '../../../core/emitter';
@@ -52,8 +54,9 @@ export class IPFSPubsubProvider
       });
 
       if (message.payload.body.type) {
-        this.emit(message.payload.body.type, message);
+        return this.emit(message.payload.body.type, message);
       }
+      this.emit(topic, message);
     });
   }
 
@@ -63,6 +66,44 @@ export class IPFSPubsubProvider
       `unsubscribing from topic "${topic}"`
     );
     return this.ipfs.libp2p.pubsub.unsubscribe(topic);
+  }
+
+  /**
+   * Send a payload to a list of DIDs
+   * @param message
+   * @param dids
+   * @returns
+   */
+  async send(message: string | IridiumDocument, options: IridiumSendOptions) {
+    return Promise.all(
+      this.arrayLike(options.to).map(async (peerId) => {
+        const peer = this.iridium?.p2p.getPeer(peerId);
+        const channel = peer?.channel;
+        if (channel) {
+          const data = json.encode(message);
+          this.logger.warn(
+            'iridium/send',
+            'publishing to channel',
+            channel,
+            data
+          );
+          await this.publish(channel, data);
+        } else {
+          this.logger.warn('iridium/send', `no channel for ${peerId}`);
+        }
+      })
+    )
+      .catch((err) => {
+        this.logger.error('iridium/send', `error sending message`, err);
+        return false;
+      })
+      .then(() => {
+        return true;
+      });
+  }
+
+  arrayLike<T = string>(thing: T | T[]): T[] {
+    return Array.isArray(thing) ? thing : [thing];
   }
 
   async publish(topic: string, data: Uint8Array) {

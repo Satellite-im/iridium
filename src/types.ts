@@ -65,6 +65,7 @@ export type IridiumWriteOptions = IridiumRequestOptions & {
 export type IridiumSendOptions = IridiumWriteOptions & {
   sign?: boolean;
   encode?: boolean;
+  to: string | string[];
 };
 
 export type IridiumSetOptions = {

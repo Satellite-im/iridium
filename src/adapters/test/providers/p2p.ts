@@ -1,5 +1,6 @@
 import type Iridium from '../../../iridium';
 import { IridiumPeer, IridiumPeerIdentifier } from '../../../types';
+import { IridiumIPFSPeer } from '../../ipfs/types';
 
 export class TestP2PProvider<
   Address = string,
@@ -13,7 +14,7 @@ export class TestP2PProvider<
   async connect(to: Address | ID) {}
   async disconnect(from: Address | ID) {}
   async send(to: IridiumPeerIdentifier, payload: Payload) {}
-  async addPeer(peer: IridiumPeer): Promise<void> {}
+  async addPeer(peer: IridiumIPFSPeer): Promise<void> {}
   hasPeer(did: string): boolean {
     return false;
   }
